@@ -37,15 +37,11 @@ class Virtualboy implements VirtualboyInstance {
     if (customMeasureFn) {
       this.measureFunction = customMeasureFn;
     } else {
-      // Wrapper for getElementDimensions, ensuring 'this.parentElement' and original methods are passed.
+      // Default measure function now calls the simplified getElementDimensions.
+      // getElementDimensions will internally call the minimal measureElement(element).
+      // The responsibility for DOM manipulation for measurement is now in handleElementAdded.
       this.measureFunction = (element: HTMLElement) =>
-        getElementDimensions(
-          element,
-          this.parentElement,
-          this.originalAppendChild, // Pass the stored original method
-          this.originalRemoveChild, // Pass the stored original method
-          undefined // customMeasureFn is undefined in this branch
-        );
+        getElementDimensions(element, undefined); // Pass element and undefined for customMeasure
     }
 
     this.kdTree = new KDTree();
@@ -158,7 +154,47 @@ class Virtualboy implements VirtualboyInstance {
       return;
     }
 
-    const dimensions = this.measureFunction(element);
+    // --- Start Measurement Preparation ---
+    const originalStyle = {
+        position: element.style.position,
+        visibility: element.style.visibility,
+        display: element.style.display,
+        left: element.style.left,
+        top: element.style.top,
+    };
+
+    // Apply styles for off-screen measurement
+    // Use existing display if set and likely to give valid dimensions (e.g. inline-block), else default to 'block'
+    const currentDisplay = element.style.display;
+    const displayForMeasure = (currentDisplay && currentDisplay !== 'none' && currentDisplay !== 'inline') ? currentDisplay : 'block';
+
+    element.style.position = 'absolute';
+    element.style.visibility = 'hidden';
+    element.style.display = displayForMeasure; 
+    element.style.left = '-9999px';
+    element.style.top = '-9999px';
+
+    if (!isInitialDiscovery) {
+        // If it's a new element (not from initial DOM scan), append it for measurement.
+        // Initial elements are already in the DOM.
+        this.originalAppendChild.call(this.parentElement, element);
+    }
+    // For initial elements, they are already children and now have the temporary measurement styles applied.
+
+    const dimensions = this.measureFunction(element); // Element is now in DOM and styled for measurement
+
+    // Immediately remove the element from the DOM after measurement.
+    // This applies to both initial elements (making them virtual) and newly added ones (which were temporary).
+    this.originalRemoveChild.call(this.parentElement, element);
+
+    // Restore original styles
+    element.style.position = originalStyle.position;
+    element.style.visibility = originalStyle.visibility;
+    element.style.display = originalStyle.display;
+    element.style.left = originalStyle.left;
+    element.style.top = originalStyle.top;
+    // --- End Measurement Preparation & Restoration ---
+
 
     // Simple vertical stacking layout logic
     // TODO: Support more complex layout strategies (e.g., using refChild, explicit x/y)
@@ -190,14 +226,9 @@ class Virtualboy implements VirtualboyInstance {
     this.elements.set(virtualElement.id, virtualElement);
     this.kdTree.insert(virtualElement);
 
-    if (isInitialDiscovery) {
-      // Remove the element from the actual DOM after it has been measured and tracked.
-      // It now exists only virtually.
-      this.originalRemoveChild.call(this.parentElement, element);
-    }
-    // If !isInitialDiscovery and element was appended via parentElement.appendChild,
-    // it's now "virtual" and won't be in the DOM via that call.
-    // The render() method will be responsible for putting it into DOM if visible.
+    // The old conditional removal for isInitialDiscovery is no longer needed here,
+    // as all elements (initial or new) are removed from DOM after measurement above.
+    // Virtualboy will re-add them to the DOM if they are in the viewport during updateVisibleElements().
   }
 
   private handleElementRemoved(element: HTMLElement): void {
