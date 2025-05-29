@@ -28,12 +28,23 @@ class Virtualboy implements VirtualboyInstance {
   constructor(parentElement: HTMLElement, customMeasureFn?: MeasureFunction) {
     this.parentElement = parentElement;
     this.currentlyVisibleElements = new Set<string>();
+
+    // Initialize original DOM methods first, as the default measureFunction will need them.
+    // Note: overrideDOMMethods also *sets* the overrides on parentElement.
+    this.overrideDOMMethods(); 
+
     if (customMeasureFn) {
       this.measureFunction = customMeasureFn;
     } else {
-      // Wrapper for getElementDimensions, ensuring 'this.parentElement' is passed for default measurement
-      this.measureFunction = (element: HTMLElement) => 
-        getElementDimensions(element, this.parentElement); // Pass this.parentElement for default strategy
+      // Wrapper for getElementDimensions, ensuring 'this.parentElement' and original methods are passed.
+      this.measureFunction = (element: HTMLElement) =>
+        getElementDimensions(
+          element,
+          this.parentElement,
+          this.originalAppendChild, // Pass the stored original method
+          this.originalRemoveChild, // Pass the stored original method
+          undefined // customMeasureFn is undefined in this branch
+        );
     }
 
     this.kdTree = new KDTree();
@@ -47,26 +58,23 @@ class Virtualboy implements VirtualboyInstance {
     this.totalVirtualWidth = this.parentElement.clientWidth; 
     this.totalVirtualHeight = 0;
 
-    // Store and override DOM methods - must be done before sizer/initial elements
-    this.overrideDOMMethods();
-
     // Create and manage sizer element for scrollbars
+    // Note: overrideDOMMethods() was called earlier.
     this.sizerElement = document.createElement('div');
     this.sizerElement.style.position = 'absolute';
     this.sizerElement.style.top = '0';
     this.sizerElement.style.left = '0';
     this.sizerElement.style.visibility = 'hidden';
     this.sizerElement.style.zIndex = '-1'; // Keep it behind content
-    // Use originalAppendChild because parentElement.appendChild is now overridden
+    // Use originalAppendChild because parentElement.appendChild is now the overridden one.
     this.originalAppendChild.call(this.parentElement, this.sizerElement);
-    // Note: discoverInitialElements will call handleElementAdded, which calls updateSizer.
-    // So, an explicit call to updateSizer() here might be redundant if discoverInitialElements runs and adds items.
-    // However, if there are no initial elements, sizer needs initial dimensions.
     this.updateSizer();
 
 
-    // Discover and virtualize existing elements
-    this.discoverInitialElements(); // This will call handleElementAdded, which calls updateSizer
+    // Discover and virtualize existing elements.
+    // This will use this.measureFunction, which might use getElementDimensions,
+    // which now correctly uses the original DOM methods for measurement.
+    this.discoverInitialElements(); 
 
     // Setup scroll handling
     this.scrollHandler = this.handleScroll.bind(this);

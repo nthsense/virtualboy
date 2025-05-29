@@ -28,20 +28,34 @@ describe('Measure Logic (src/measure.ts)', () => {
       // Using simple objects as mocks since their internal details don't matter for this test path
       const element = {} as HTMLElement; 
       const parentElement = {} as HTMLElement;
+      const mockOriginalAppend = jest.fn();
+      const mockOriginalRemove = jest.fn();
 
-      const dimensions = getElementDimensions(element, parentElement, mockCustomMeasure);
+      const dimensions = getElementDimensions(element, parentElement, mockOriginalAppend, mockOriginalRemove, mockCustomMeasure);
 
       expect(mockCustomMeasure).toHaveBeenCalledWith(element);
       expect(dimensions).toEqual({ width: 123, height: 456 });
+      // Ensure original DOM methods are not called when customMeasure is used
+      expect(mockOriginalAppend).not.toHaveBeenCalled();
+      expect(mockOriginalRemove).not.toHaveBeenCalled();
     });
 
     test('should use default measureElement logic if customMeasure is not provided', () => {
       const mockElem = createMockElement({}, 100, 50);
       const mockParentElem = createMockParentElement();
+      // These mocks will be passed to measureElement, which should then use them.
+      const mockOriginalAppend = jest.fn( (el: Node) => mockParentElem.appendChild(el) );
+      const mockOriginalRemove = jest.fn( (el: Node) => mockParentElem.removeChild(el) );
 
-      const dimensions = getElementDimensions(mockElem, mockParentElem, undefined);
 
-      expect(mockParentElem.appendChild).toHaveBeenCalledWith(mockElem);
+      const dimensions = getElementDimensions(mockElem, mockParentElem, mockOriginalAppend, mockOriginalRemove, undefined);
+
+      // getElementDimensions calls measureElement, which in turn calls originalAppend/Remove.
+      // The spies on mockParentElem methods are to confirm that the passed-through functions were indeed called.
+      expect(mockOriginalAppend).toHaveBeenCalledWith(mockElem);
+      expect(mockOriginalRemove).toHaveBeenCalledWith(mockElem);
+      // Also verify that the spies on mockParentElem were called by the mockOriginalAppend/Remove
+      expect(mockParentElem.appendChild).toHaveBeenCalledWith(mockElem); 
       expect(mockParentElem.removeChild).toHaveBeenCalledWith(mockElem);
       expect(dimensions).toEqual({ width: 100, height: 50 });
 
@@ -63,8 +77,10 @@ describe('Measure Logic (src/measure.ts)', () => {
       };
       const mockElem = createMockElement(originalStyle, 200, 75);
       const mockParentElem = createMockParentElement();
+      const mockOriginalAppend = jest.fn( (el: Node) => mockParentElem.appendChild(el) );
+      const mockOriginalRemove = jest.fn( (el: Node) => mockParentElem.removeChild(el) );
 
-      getElementDimensions(mockElem, mockParentElem, undefined);
+      getElementDimensions(mockElem, mockParentElem, mockOriginalAppend, mockOriginalRemove, undefined);
 
       // Check that original styles were restored
       expect(mockElem.style.position).toBe(originalStyle.position);
@@ -103,10 +119,14 @@ describe('Measure Logic (src/measure.ts)', () => {
         if (!mockElem.style) {
             (mockElem as any).style = {};
         }
-
         const mockParentElem = createMockParentElement();
-        getElementDimensions(mockElem, mockParentElem, undefined);
+        const mockOriginalAppend = jest.fn( (el: Node) => mockParentElem.appendChild(el) );
+        const mockOriginalRemove = jest.fn( (el: Node) => mockParentElem.removeChild(el) );
+        
+        getElementDimensions(mockElem, mockParentElem, mockOriginalAppend, mockOriginalRemove, undefined);
 
+        expect(mockOriginalAppend).toHaveBeenCalledWith(mockElem);
+        expect(mockOriginalRemove).toHaveBeenCalledWith(mockElem);
         expect(mockParentElem.appendChild).toHaveBeenCalledWith(mockElem);
         expect(mockParentElem.removeChild).toHaveBeenCalledWith(mockElem);
         
