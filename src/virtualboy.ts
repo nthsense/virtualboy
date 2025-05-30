@@ -304,20 +304,21 @@ class Virtualboy implements VirtualboyInstance {
     const elementsInViewport = this.kdTree.queryRange(viewportRect); // VirtualElement[]
     const shouldBeVisibleIds = new Set(elementsInViewport.map(ve => ve.id));
 
-    // Process Removals
+    // Process Removals - This block should be active
     // Iterate over a copy of the set because we might modify it
     for (const idToRemove of Array.from(this.currentlyVisibleElements)) {
       if (!shouldBeVisibleIds.has(idToRemove)) {
         const virtualElement = this.elements.get(idToRemove);
         if (virtualElement && virtualElement.isVisible) {
-          this.originalRemoveChild.call(this.parentElement, virtualElement.element);
+          // Instead of removing, just hide the element
+          virtualElement.element.style.display = 'none';
           virtualElement.isVisible = false;
           this.currentlyVisibleElements.delete(idToRemove);
         }
       }
     }
 
-    // Process Additions
+    // Process Additions - This block is now active again
     for (const virtualElement of elementsInViewport) {
       if (!this.currentlyVisibleElements.has(virtualElement.id)) {
         const domElement = virtualElement.element;
