@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const width = Math.floor(Math.random() * 100) + elementBaseSize; // 50 to 149
         const height = Math.floor(Math.random() * 80) + (elementBaseSize / 2); // 25 to 104
-        
+
         div.style.width = width + 'px';
         div.style.height = height + 'px';
         // Random background color
@@ -36,12 +36,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const g = Math.floor(Math.random() * 200) + 55;
         const b = Math.floor(Math.random() * 200) + 55;
         div.style.backgroundColor = `rgb(${r},${g},${b})`;
-        
+
         div.textContent = `Item ${i + 1}`;
         div.title = `Item ${i + 1} (${width}x${height})`; // Tooltip
 
         // Virtualboy's overridden appendChild will handle this
-        virtualContainer.appendChild(div); 
+        virtualContainer.appendChild(div);
     }
     console.log(`Added ${numElements} virtual elements via appendChild.`);
 

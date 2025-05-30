@@ -39,7 +39,7 @@
 <body>
     <h1>Virtualboy Demo Page</h1>
     <p>Scroll the container and move your mouse over elements to see them highlight.</p>
-    
+
     <div id="virtual-container">
         <!-- Virtualboy will populate this and add its sizer here -->
     </div>
@@ -49,14 +49,14 @@
         Elements at point: <span id="elements-at-point">-</span>
     </div>
 
-    <!-- 
+    <!--
         We'll assume virtualboy.bundle.js is created by a bundling step.
         For local testing without a bundler immediately, one might try:
-        <script type="module" src="src/init.js"></script> 
+        <script type="module" src="src/init.js"></script>
         (if tsc output is configured for browser modules in a way it can resolve imports)
         But for this plan, we assume a bundle.
     -->
-    <script src="dist/virtualboy.bundle.js"></script> 
+    <script src="dist/virtualboy.bundle.js"></script>
     <script src="demo.js"></script>
 </body>
 </html>

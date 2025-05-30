@@ -11,7 +11,7 @@ export interface VirtualElement {
   rect: Rect; // Its virtual bounding box
   isVisible: boolean; // Currently rendered in the DOM
   // Add any other relevant properties that come to mind, e.g., original display style
-  originalDisplay?: string; 
+  originalDisplay?: string;
 }
 
 export type MeasureFunction = (element: HTMLElement) => { width: number; height: number };

@@ -16,7 +16,7 @@ const createMockParentElement = () => ({
 } as unknown as HTMLElement); // Cast for type compatibility
 
 describe('Measure Logic (src/measure.ts)', () => {
-  
+
   beforeEach(() => {
     // Clear all mocks if any are global or module-level (though here they are mostly function-scoped)
     jest.clearAllMocks();
@@ -26,7 +26,7 @@ describe('Measure Logic (src/measure.ts)', () => {
     test('should use customMeasure function if provided', () => {
       const mockCustomMeasure: MeasureFunction = jest.fn(() => ({ width: 123, height: 456 }));
       // Using simple objects as mocks since their internal details don't matter for this test path
-      const element = {} as HTMLElement; 
+      const element = {} as HTMLElement;
       const parentElement = {} as HTMLElement;
       const mockOriginalAppend = jest.fn();
       const mockOriginalRemove = jest.fn();
@@ -55,14 +55,14 @@ describe('Measure Logic (src/measure.ts)', () => {
       expect(mockOriginalAppend).toHaveBeenCalledWith(mockElem);
       expect(mockOriginalRemove).toHaveBeenCalledWith(mockElem);
       // Also verify that the spies on mockParentElem were called by the mockOriginalAppend/Remove
-      expect(mockParentElem.appendChild).toHaveBeenCalledWith(mockElem); 
+      expect(mockParentElem.appendChild).toHaveBeenCalledWith(mockElem);
       expect(mockParentElem.removeChild).toHaveBeenCalledWith(mockElem);
       expect(dimensions).toEqual({ width: 100, height: 50 });
 
       // Check that styles were applied for measurement then restored (assuming initial was empty)
-      expect(mockElem.style.position).toBe(''); 
-      expect(mockElem.style.visibility).toBe(''); 
-      expect(mockElem.style.display).toBe(''); 
+      expect(mockElem.style.position).toBe('');
+      expect(mockElem.style.visibility).toBe('');
+      expect(mockElem.style.display).toBe('');
       expect(mockElem.style.left).toBe('');
       expect(mockElem.style.top).toBe('');
     });
@@ -88,7 +88,7 @@ describe('Measure Logic (src/measure.ts)', () => {
       expect(mockElem.style.display).toBe(originalStyle.display);
       expect(mockElem.style.left).toBe(originalStyle.left);
       expect(mockElem.style.top).toBe(originalStyle.top);
-      
+
       // Additionally, check that styles were set during measurement (as per measureElement implementation)
       // This requires knowing what measureElement sets them to.
       // During appendChild, styles should be:
@@ -98,7 +98,7 @@ describe('Measure Logic (src/measure.ts)', () => {
       // element.style.left = '-9999px';
       // element.style.top = '-9999px';
       // We can check these values were set by observing the mockParentElem.appendChild call
-      
+
       const appendChildSpy = mockParentElem.appendChild as jest.Mock;
       expect(appendChildSpy).toHaveBeenCalledTimes(1);
       const elementDuringAppend = appendChildSpy.mock.calls[0][0] as HTMLElement;
@@ -122,14 +122,14 @@ describe('Measure Logic (src/measure.ts)', () => {
         const mockParentElem = createMockParentElement();
         const mockOriginalAppend = jest.fn( (el: Node) => mockParentElem.appendChild(el) );
         const mockOriginalRemove = jest.fn( (el: Node) => mockParentElem.removeChild(el) );
-        
+
         getElementDimensions(mockElem, mockParentElem, mockOriginalAppend, mockOriginalRemove, undefined);
 
         expect(mockOriginalAppend).toHaveBeenCalledWith(mockElem);
         expect(mockOriginalRemove).toHaveBeenCalledWith(mockElem);
         expect(mockParentElem.appendChild).toHaveBeenCalledWith(mockElem);
         expect(mockParentElem.removeChild).toHaveBeenCalledWith(mockElem);
-        
+
         // Check that styles are restored to their "default" (empty string for these properties)
         expect(mockElem.style.position).toBe('');
         expect(mockElem.style.visibility).toBe('');

@@ -33,7 +33,7 @@ describe('KDTree', () => {
       // el1 (10,20) is root. Axis X.
       // el2 (5,15) -> el2.x < el1.x, so el2 goes left.
       // el3 (15,25) -> el3.x >= el1.x, so el3 goes right.
-      const el2 = createMockVirtualElement('el2', { x: 5, y: 15, width: 5, height: 5 }); 
+      const el2 = createMockVirtualElement('el2', { x: 5, y: 15, width: 5, height: 5 });
       const el3 = createMockVirtualElement('el3', { x: 15, y: 25, width: 5, height: 5 });
       kdTree.insert(el1);
       kdTree.insert(el2);
@@ -42,7 +42,7 @@ describe('KDTree', () => {
       expect(result).toHaveLength(3);
       expect(result.map(e => e.id).sort()).toEqual(['el1', 'el2', 'el3'].sort());
     });
-    
+
     test('should handle elements with identical coordinates but different IDs', () => {
       const el1 = createMockVirtualElement('el1', { x: 10, y: 20, width: 5, height: 5 });
       const el2 = createMockVirtualElement('el2', { x: 10, y: 20, width: 5, height: 5 });
@@ -50,7 +50,7 @@ describe('KDTree', () => {
       kdTree.insert(el2);
       // queryRange includes elements whose rects intersect the queryRect.
       // A 1x1 query rect at the exact start of el1 and el2 should find them.
-      const result = kdTree.queryRange({ x: 10, y: 20, width: 1, height: 1 }); 
+      const result = kdTree.queryRange({ x: 10, y: 20, width: 1, height: 1 });
       expect(result).toHaveLength(2);
       expect(result.map(e => e.id).sort()).toEqual(['el1', 'el2'].sort());
     });
@@ -77,7 +77,7 @@ describe('KDTree', () => {
       const result = kdTree.queryRange({ x: 5, y: 15, width: 15, height: 15 }); // Query: 5,15 to 20,30. Catches el1, el3.
       expect(result.map(e => e.id).sort()).toEqual(['el1', 'el3'].sort());
     });
-    
+
     test('should return elements that partially intersect the query rectangle', () => {
       const result = kdTree.queryRange({ x: 18, y: 28, width: 5, height: 5 }); // Query: 18,28 to 23,33. Intersects el1, el3.
       expect(result.map(e => e.id).sort()).toEqual(['el1', 'el3'].sort());
@@ -87,7 +87,7 @@ describe('KDTree', () => {
       const result = kdTree.queryRange({ x: 100, y: 100, width: 10, height: 10 });
       expect(result).toHaveLength(0);
     });
-    
+
     test('should return elements when query rect is identical to an element rect', () => {
       const result = kdTree.queryRange({ x: 10, y: 20, width: 10, height: 10 });
       expect(result.find(e => e.id === 'el1')).toBeDefined();
@@ -118,7 +118,7 @@ describe('KDTree', () => {
       expect(kdTree.queryPoint(0, 0)).toHaveLength(0);
       expect(kdTree.queryPoint(21, 31)).toHaveLength(0); // Outside el1 by 1px
     });
-    
+
     test('should return elements if point is on the edge', () => {
       // KDTree.queryPoint uses a 1x1 rect for queryRange, then filters with `contains`.
       // The `contains` helper is inclusive: x >= rect.x && x <= rect.x + rect.width
@@ -158,7 +158,7 @@ describe('KDTree', () => {
       expect(kdTree.queryPoint(5,15)[0]?.id).toBe('el2');
       expect(kdTree.queryPoint(15,25)[0]?.id).toBe('el3');
     });
-    
+
     test('should do nothing if element to remove is not found (wrong id)', () => {
       const fakeElement = createMockVirtualElement('fake', { x: 10, y: 20, width: 5, height: 5 }); // Same rect as el1
       kdTree.remove(fakeElement);
@@ -186,16 +186,16 @@ describe('KDTree', () => {
       kdTree.remove(el3);
       expect(kdTree.queryRange({ x: 0, y: 0, width: 100, height: 100 })).toEqual([]);
     });
-    
+
     test('should correctly remove and re-add elements', () => {
       const el1OriginalRect = { ...el1.rect };
       kdTree.remove(el1);
       // Verify el1 is gone
       let result = kdTree.queryRange({ x: 0, y: 0, width: 100, height: 100 });
       expect(result.map(e=>e.id)).not.toContain('el1');
-      
+
       const el1Reinserted = createMockVirtualElement('el1', el1OriginalRect); // Use original rect
-      kdTree.insert(el1Reinserted); 
+      kdTree.insert(el1Reinserted);
       result = kdTree.queryRange({ x: 0, y: 0, width: 100, height: 100 });
       expect(result.map(e => e.id).sort()).toEqual(['el1', 'el2', 'el3'].sort());
     });
@@ -209,7 +209,7 @@ describe('KDTree', () => {
             currentRoot = kdTree.queryRange({x:0,y:0,width:100,height:100}).find(e => e.rect.x === 5);
         }
         expect(currentRoot).toBeDefined();
-        
+
         kdTree.remove(currentRoot!); // Remove the new root
         const result = kdTree.queryRange({ x: 0, y: 0, width: 100, height: 100 });
         expect(result.length).toBe(1); // Only one element should remain

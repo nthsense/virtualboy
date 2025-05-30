@@ -9,12 +9,12 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "composite": true,
-    
+
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    
+
     "moduleResolution": "node"
   },
   "include": ["src/**/*"],

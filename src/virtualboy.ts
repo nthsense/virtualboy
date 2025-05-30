@@ -32,7 +32,7 @@ class Virtualboy implements VirtualboyInstance {
 
     // Initialize original DOM methods first, as the default measureFunction will need them.
     // Note: overrideDOMMethods also *sets* the overrides on parentElement.
-    this.overrideDOMMethods(); 
+    this.overrideDOMMethods();
 
     if (customMeasureFn) {
       this.measureFunction = customMeasureFn;
@@ -48,11 +48,11 @@ class Virtualboy implements VirtualboyInstance {
     this.elements = new Map<string, VirtualElement>();
     this.virtualScrollTop = 0;
     this.virtualScrollLeft = 0;
-    
+
     // Initial dimensions could be based on parent or 0.
     // Parent's clientWidth might be a good starting point for totalVirtualWidth if elements are laid out horizontally.
     // totalVirtualHeight will typically grow as elements are added vertically.
-    this.totalVirtualWidth = this.parentElement.clientWidth; 
+    this.totalVirtualWidth = this.parentElement.clientWidth;
     this.totalVirtualHeight = 0;
 
     // Attach Shadow DOM and create sizer within it
@@ -68,6 +68,11 @@ class Virtualboy implements VirtualboyInstance {
         // 'data-virtualboy-internal' attribute is NOT set as it's encapsulated.
 
         this.shadowRoot.appendChild(this.sizerElement);
+
+        // Create and append a default slot for light DOM content (rendered items)
+        const slotElement = document.createElement('slot');
+        this.shadowRoot.appendChild(slotElement);
+
     } else {
         console.error(
             "Virtualboy: Shadow DOM not supported on the parentElement. " +
@@ -83,7 +88,7 @@ class Virtualboy implements VirtualboyInstance {
     // Discover and virtualize existing elements.
     // This will use this.measureFunction, which might use getElementDimensions,
     // which now correctly uses the original DOM methods for measurement.
-    this.discoverInitialElements(); 
+    this.discoverInitialElements();
 
     // Setup scroll handling
     this.scrollHandler = this.handleScroll.bind(this);
@@ -170,7 +175,7 @@ class Virtualboy implements VirtualboyInstance {
 
     element.style.position = 'absolute';
     element.style.visibility = 'hidden';
-    element.style.display = displayForMeasure; 
+    element.style.display = displayForMeasure;
     element.style.left = '-9999px';
     element.style.top = '-9999px';
 
@@ -368,7 +373,7 @@ class Virtualboy implements VirtualboyInstance {
     const virtualElements = this.kdTree.queryPoint(x, y);
     return virtualElements.map(ve => ve.element);
   }
-  
+
   public remeasure(): void {
     const currentScrollTop = this.parentElement.scrollTop;
     const currentScrollLeft = this.parentElement.scrollLeft;
@@ -399,12 +404,12 @@ class Virtualboy implements VirtualboyInstance {
 
       // Recalculate position (simple vertical stack for this example)
       // TODO: Allow for more sophisticated layout strategies if needed
-      virtualElement.rect.x = 0; 
+      virtualElement.rect.x = 0;
       virtualElement.rect.y = newTotalVirtualHeight;
-      
+
       newTotalVirtualHeight += virtualElement.rect.height;
       newTotalVirtualWidth = Math.max(newTotalVirtualWidth, virtualElement.rect.x + virtualElement.rect.width);
-      
+
       // Re-insert the updated element into the new KDTree
       this.kdTree.insert(virtualElement);
     }
@@ -417,7 +422,7 @@ class Virtualboy implements VirtualboyInstance {
     // so that the viewport calculation is based on the intended scroll state.
     this.parentElement.scrollTop = currentScrollTop;
     this.parentElement.scrollLeft = currentScrollLeft;
-    
+
     // Re-render elements based on the new layout and restored scroll position
     this.updateVisibleElements();
   }
@@ -437,12 +442,12 @@ class Virtualboy implements VirtualboyInstance {
       }
     }
     this.currentlyVisibleElements.clear();
-    
+
     // Clear internal element tracking
     this.elements.clear();
     // Re-initialize KDTree; alternatively, if KDTree had a .clear() method, that could be used.
-    this.kdTree = new KDTree(); 
-    
+    this.kdTree = new KDTree();
+
     // Reset scroll and dimension properties
     this.virtualScrollLeft = 0;
     this.virtualScrollTop = 0;
@@ -452,7 +457,7 @@ class Virtualboy implements VirtualboyInstance {
     // Sizer and Shadow DOM cleanup
     if (this.shadowRoot) {
         // Clear all content from the shadow root, which includes the sizer.
-        this.shadowRoot.innerHTML = ''; 
+        this.shadowRoot.innerHTML = '';
         this.shadowRoot = null;
     }
     // The sizerElement was a child of shadowRoot, so it's gone now if shadowRoot existed.

@@ -73,7 +73,7 @@ export class KDTree {
     if (queryMinCoord < nodeCoord) {
       this.queryRangeNode(node.left, queryRect, results);
     }
-    
+
     // If the query range's maximum for the current axis is greater than or equal to the node's coordinate,
     // it means the range might extend into the right/top subtree.
     // Using >= for the nodeCoord comparison with queryMaxCoord to ensure elements starting exactly at queryMaxCoord are included.
@@ -95,18 +95,18 @@ export class KDTree {
         this.queryRangeNode(node.right, queryRect, results);
     }
   }
-  
+
   // --- QUERY POINT ---
   public queryPoint(x: number, y: number): VirtualElement[] {
     // Create a 1x1 rect for the query.
     // Using a 0x0 rect might be problematic if intersects logic expects positive width/height.
-    const pointRect: Rect = { x: x, y: y, width: 1, height: 1 }; 
-    
+    const pointRect: Rect = { x: x, y: y, width: 1, height: 1 };
+
     // Alternative: direct point query. For now, using queryRange.
     // const results: VirtualElement[] = [];
     // this.queryPointNode(this.root, x, y, results);
     // return results;
-    
+
     // Filter results from queryRange to ensure only elements strictly containing the point are returned.
     const rangeResults = this.queryRange(pointRect);
     return rangeResults.filter(el => this.contains(el.rect, x, y));
@@ -160,10 +160,10 @@ export class KDTree {
       // Case 3: Node has both left and right children
       // Find the minimum element in the right subtree along the current axis (this node's axis)
       const replacementNode = this.findMinNode(node.right, axis, depth + 1);
-      
+
       // Replace node's element with the replacement node's element
       node.element = replacementNode.element;
-      
+
       // Recursively remove the replacement node from the right subtree
       node.right = this.removeNode(node.right, replacementNode.element, depth + 1);
       return node;
