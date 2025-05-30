@@ -303,17 +303,17 @@ class Virtualboy implements VirtualboyInstance {
 
     const elementsInViewport = this.kdTree.queryRange(viewportRect); // VirtualElement[]
     const shouldBeVisibleIds = new Set(elementsInViewport.map(ve => ve.id));
-    const idsToRemoveFromVisibleSet: string[] = [];
+    // const idsToRemoveFromVisibleSet: string[] = []; // Commented out for this test
 
-    // Process Removals - Identify elements to "soft remove" and mark for actual Set deletion
+    // Process Removals - Identify elements to "soft remove"
     // Iterate over a copy of the set because we might modify it if we were deleting directly
     for (const idToRemove of Array.from(this.currentlyVisibleElements)) {
       if (!shouldBeVisibleIds.has(idToRemove)) {
         const virtualElement = this.elements.get(idToRemove);
         if (virtualElement && virtualElement.isVisible) { // Process only if currently marked as visible
           virtualElement.element.style.display = 'none';
-          virtualElement.isVisible = false;
-          idsToRemoveFromVisibleSet.push(idToRemove); // Add to list for delayed Set.delete()
+          // virtualElement.isVisible = false; // Commented out for this test
+          // idsToRemoveFromVisibleSet.push(idToRemove); // Commented out for this test
         }
       }
     }
@@ -375,9 +375,9 @@ class Virtualboy implements VirtualboyInstance {
     }
 
     // Now, perform the actual Set.delete() operations
-    for (const id of idsToRemoveFromVisibleSet) {
-        this.currentlyVisibleElements.delete(id);
-    }
+    // for (const id of idsToRemoveFromVisibleSet) { // Commented out for this test
+    //     this.currentlyVisibleElements.delete(id);
+    // }
     // Note: The parentElement should have appropriate CSS (e.g., position: relative)
     // for absolute positioning of children to work as expected. This is a user responsibility.
   }
