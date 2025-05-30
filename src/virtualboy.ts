@@ -1,10 +1,15 @@
-import { Rect, VirtualElement, MeasureFunction, VirtualboyInstance } from './types';
-import { getElementDimensions } from './measure';
-import { KDTree } from './kdTree';
+import {
+  Rect,
+  VirtualElement,
+  MeasureFunction,
+  VirtualboyInstance,
+} from "./types";
+import { getElementDimensions } from "./measure";
+import { KDTree } from "./kdTree";
 
 class Virtualboy implements VirtualboyInstance {
-  private static readonly MAX_SCROLL_HEIGHT: number = 1000000;
-  private static readonly MAX_SCROLL_WIDTH: number = 1000000;
+  private static readonly MAX_SCROLL_HEIGHT: number = 1000;
+  private static readonly MAX_SCROLL_WIDTH: number = 1000;
   private parentElement: HTMLElement;
   private measureFunction: MeasureFunction;
   private kdTree: KDTree;
@@ -25,7 +30,10 @@ class Virtualboy implements VirtualboyInstance {
 
   // Store original DOM methods
   private originalAppendChild: <T extends Node>(newChild: T) => T;
-  private originalInsertBefore: <T extends Node>(newChild: T, refChild: Node | null) => T;
+  private originalInsertBefore: <T extends Node>(
+    newChild: T,
+    refChild: Node | null,
+  ) => T;
   private originalRemoveChild: <T extends Node>(oldChild: T) => T;
 
   constructor(parentElement: HTMLElement, customMeasureFn?: MeasureFunction) {
@@ -36,18 +44,19 @@ class Virtualboy implements VirtualboyInstance {
     // Note: overrideDOMMethods also *sets* the overrides on parentElement.
     this.overrideDOMMethods();
 
-    this.sizerElement = document.createElement('div');
-    if (this.sizerElement) { // sizerElement is created just before this
-        this.sizerElement.style.position = 'absolute';
-        this.sizerElement.style.visibility = 'hidden';
-        this.sizerElement.style.zIndex = '-1';
-        this.sizerElement.style.top = '0px';
-        this.sizerElement.style.left = '0px';
-        this.sizerElement.style.width = '0px';
-        this.sizerElement.style.height = '0px';
-        // Ensure it's not virtualized if it were to be appended via parentElement.appendChild
-        // by using originalAppendChild.
-        this.originalAppendChild.call(this.parentElement, this.sizerElement);
+    this.sizerElement = document.createElement("div");
+    if (this.sizerElement) {
+      // sizerElement is created just before this
+      this.sizerElement.style.position = "absolute";
+      this.sizerElement.style.visibility = "hidden";
+      this.sizerElement.style.zIndex = "-1";
+      this.sizerElement.style.top = "0px";
+      this.sizerElement.style.left = "0px";
+      this.sizerElement.style.width = "0px";
+      this.sizerElement.style.height = "0px";
+      // Ensure it's not virtualized if it were to be appended via parentElement.appendChild
+      // by using originalAppendChild.
+      this.originalAppendChild.call(this.parentElement, this.sizerElement);
     }
 
     if (customMeasureFn) {
@@ -78,7 +87,7 @@ class Virtualboy implements VirtualboyInstance {
 
     // Setup scroll handling
     this.scrollHandler = this.handleScroll.bind(this);
-    this.parentElement.addEventListener('scroll', this.scrollHandler);
+    this.parentElement.addEventListener("scroll", this.scrollHandler);
 
     // Initial render of visible elements
     this.updateVisibleElements();
@@ -91,9 +100,15 @@ class Virtualboy implements VirtualboyInstance {
   }
 
   private overrideDOMMethods(): void {
-    this.originalAppendChild = this.parentElement.appendChild.bind(this.parentElement);
-    this.originalInsertBefore = this.parentElement.insertBefore.bind(this.parentElement);
-    this.originalRemoveChild = this.parentElement.removeChild.bind(this.parentElement);
+    this.originalAppendChild = this.parentElement.appendChild.bind(
+      this.parentElement,
+    );
+    this.originalInsertBefore = this.parentElement.insertBefore.bind(
+      this.parentElement,
+    );
+    this.originalRemoveChild = this.parentElement.removeChild.bind(
+      this.parentElement,
+    );
 
     this.parentElement.appendChild = <T extends Node>(newChild: T): T => {
       if (newChild instanceof HTMLElement) {
@@ -104,12 +119,22 @@ class Virtualboy implements VirtualboyInstance {
       }
     };
 
-    this.parentElement.insertBefore = <T extends Node>(newChild: T, refChild: Node | null): T => {
+    this.parentElement.insertBefore = <T extends Node>(
+      newChild: T,
+      refChild: Node | null,
+    ): T => {
       if (newChild instanceof HTMLElement) {
-        this.handleElementAdded(newChild as HTMLElement, refChild as HTMLElement | null);
+        this.handleElementAdded(
+          newChild as HTMLElement,
+          refChild as HTMLElement | null,
+        );
         return newChild;
       } else {
-        return this.originalInsertBefore.call(this.parentElement, newChild, refChild) as T;
+        return this.originalInsertBefore.call(
+          this.parentElement,
+          newChild,
+          refChild,
+        ) as T;
       }
     };
 
@@ -129,9 +154,10 @@ class Virtualboy implements VirtualboyInstance {
   private discoverInitialElements(): void {
     // Convert HTMLCollection to array to avoid issues if collection mutates during iteration
     const initialChildren = Array.from(this.parentElement.children);
-    initialChildren.forEach(child => {
+    initialChildren.forEach((child) => {
       if (child instanceof HTMLElement) {
-        if (child === this.sizerElement) { // Add this check
+        if (child === this.sizerElement) {
+          // Add this check
           return; // Skip processing for the sizer element
         }
         // isInitialDiscovery = true, so it will be removed from DOM after processing
@@ -140,38 +166,47 @@ class Virtualboy implements VirtualboyInstance {
     });
   }
 
-  private handleElementAdded(element: HTMLElement, _refChild?: HTMLElement | null, isInitialDiscovery: boolean = false): void {
+  private handleElementAdded(
+    element: HTMLElement,
+    _refChild?: HTMLElement | null,
+    isInitialDiscovery: boolean = false,
+  ): void {
     // Basic check to prevent double-adding if element already has an ID we track.
     // More robust checking might be needed if IDs are not stable or guaranteed unique outside Virtualboy.
     if (element.id && this.elements.has(element.id)) {
-      console.warn(`Virtualboy: Element with ID '${element.id}' already added. Skipping.`);
+      console.warn(
+        `Virtualboy: Element with ID '${element.id}' already added. Skipping.`,
+      );
       return;
     }
 
     // --- Start Measurement Preparation ---
     const originalStyle = {
-        position: element.style.position,
-        visibility: element.style.visibility,
-        display: element.style.display,
-        left: element.style.left,
-        top: element.style.top,
+      position: element.style.position,
+      visibility: element.style.visibility,
+      display: element.style.display,
+      left: element.style.left,
+      top: element.style.top,
     };
 
     // Apply styles for off-screen measurement
     // Use existing display if set and likely to give valid dimensions (e.g. inline-block), else default to 'block'
     const currentDisplay = element.style.display;
-    const displayForMeasure = (currentDisplay && currentDisplay !== 'none' && currentDisplay !== 'inline') ? currentDisplay : 'block';
+    const displayForMeasure =
+      currentDisplay && currentDisplay !== "none" && currentDisplay !== "inline"
+        ? currentDisplay
+        : "block";
 
-    element.style.position = 'absolute';
-    element.style.visibility = 'hidden';
+    element.style.position = "absolute";
+    element.style.visibility = "hidden";
     element.style.display = displayForMeasure;
-    element.style.left = '-9999px';
-    element.style.top = '-9999px';
+    element.style.left = "-9999px";
+    element.style.top = "-9999px";
 
     if (!isInitialDiscovery) {
-        // If it's a new element (not from initial DOM scan), append it for measurement.
-        // Initial elements are already in the DOM.
-        this.originalAppendChild.call(this.parentElement, element);
+      // If it's a new element (not from initial DOM scan), append it for measurement.
+      // Initial elements are already in the DOM.
+      this.originalAppendChild.call(this.parentElement, element);
     }
     // For initial elements, they are already children and now have the temporary measurement styles applied.
 
@@ -188,7 +223,6 @@ class Virtualboy implements VirtualboyInstance {
     element.style.left = originalStyle.left;
     element.style.top = originalStyle.top;
     // --- End Measurement Preparation & Restoration ---
-
 
     // Simple vertical stacking layout logic
     // TODO: Support more complex layout strategies (e.g., using refChild, explicit x/y)
@@ -214,7 +248,7 @@ class Virtualboy implements VirtualboyInstance {
       element: element,
       rect: virtualRect,
       isVisible: false, // Elements are not visible until explicitly rendered by Virtualboy
-      originalDisplay: element.style.display || '', // Store original display style
+      originalDisplay: element.style.display || "", // Store original display style
     };
 
     this.elements.set(virtualElement.id, virtualElement);
@@ -253,7 +287,6 @@ class Virtualboy implements VirtualboyInstance {
       this.totalVirtualWidth = newTotalWidth;
       this.updateSizer();
 
-
       // If the element was visible (i.e., physically in the DOM managed by Virtualboy), remove it.
       if (virtualElement.isVisible) {
         this.originalRemoveChild.call(this.parentElement, element);
@@ -271,12 +304,16 @@ class Virtualboy implements VirtualboyInstance {
 
   private updateSizer(): void {
     if (this.sizerElement) {
-      const sizerHeight = this.totalVirtualHeight > Virtualboy.MAX_SCROLL_HEIGHT ?
-        Virtualboy.MAX_SCROLL_HEIGHT : this.totalVirtualHeight;
+      const sizerHeight =
+        this.totalVirtualHeight > Virtualboy.MAX_SCROLL_HEIGHT
+          ? Virtualboy.MAX_SCROLL_HEIGHT
+          : this.totalVirtualHeight;
       this.sizerElement.style.height = `${sizerHeight}px`;
 
-      const sizerWidth = this.totalVirtualWidth > Virtualboy.MAX_SCROLL_WIDTH ?
-        Virtualboy.MAX_SCROLL_WIDTH : this.totalVirtualWidth;
+      const sizerWidth =
+        this.totalVirtualWidth > Virtualboy.MAX_SCROLL_WIDTH
+          ? Virtualboy.MAX_SCROLL_WIDTH
+          : this.totalVirtualWidth;
       this.sizerElement.style.width = `${sizerWidth}px`;
     }
   }
@@ -295,20 +332,27 @@ class Virtualboy implements VirtualboyInstance {
       } else {
         const currentScrollTopForSizer = this.parentElement.scrollTop;
         let scrollPercentageY = 0; // Default to 0
-        if (maxScrollTopForSizer > 0) { // Ensure maxScrollTopForSizer is positive before division
-            scrollPercentageY = currentScrollTopForSizer / maxScrollTopForSizer;
+        if (maxScrollTopForSizer > 0) {
+          // Ensure maxScrollTopForSizer is positive before division
+          scrollPercentageY = currentScrollTopForSizer / maxScrollTopForSizer;
         }
         scrollPercentageY = Math.max(0, Math.min(1, scrollPercentageY)); // Clamp
-
-        const maxVirtualScrollTop = this.totalVirtualHeight - parentClientHeight;
-        this.virtualScrollTop = scrollPercentageY * (maxVirtualScrollTop > 0 ? maxVirtualScrollTop : 0);
+        console.log(scrollPercentageY);
+        const maxVirtualScrollTop =
+          this.totalVirtualHeight - parentClientHeight;
+        this.virtualScrollTop =
+          scrollPercentageY *
+          (maxVirtualScrollTop > 0 ? maxVirtualScrollTop : 0);
       }
     }
     // Clamping virtualScrollTop
     this.virtualScrollTop = Math.max(0, this.virtualScrollTop);
-    const maxPossibleVirtualScrollTop = this.totalVirtualHeight - this.parentElement.clientHeight;
-    this.virtualScrollTop = Math.min(this.virtualScrollTop, maxPossibleVirtualScrollTop > 0 ? maxPossibleVirtualScrollTop : 0);
-
+    const maxPossibleVirtualScrollTop =
+      this.totalVirtualHeight - this.parentElement.clientHeight;
+    this.virtualScrollTop = Math.min(
+      this.virtualScrollTop,
+      maxPossibleVirtualScrollTop > 0 ? maxPossibleVirtualScrollTop : 0,
+    );
 
     // Horizontal scroll calculation
     if (this.totalVirtualWidth <= Virtualboy.MAX_SCROLL_WIDTH) {
@@ -323,19 +367,26 @@ class Virtualboy implements VirtualboyInstance {
       } else {
         const currentScrollLeftForSizer = this.parentElement.scrollLeft;
         let scrollPercentageX = 0; // Default to 0
-        if (maxScrollLeftForSizer > 0) { // Ensure maxScrollLeftForSizer is positive before division
-            scrollPercentageX = currentScrollLeftForSizer / maxScrollLeftForSizer;
+        if (maxScrollLeftForSizer > 0) {
+          // Ensure maxScrollLeftForSizer is positive before division
+          scrollPercentageX = currentScrollLeftForSizer / maxScrollLeftForSizer;
         }
         scrollPercentageX = Math.max(0, Math.min(1, scrollPercentageX)); // Clamp
 
         const maxVirtualScrollLeft = this.totalVirtualWidth - parentClientWidth;
-        this.virtualScrollLeft = scrollPercentageX * (maxVirtualScrollLeft > 0 ? maxVirtualScrollLeft : 0);
+        this.virtualScrollLeft =
+          scrollPercentageX *
+          (maxVirtualScrollLeft > 0 ? maxVirtualScrollLeft : 0);
       }
     }
     // Clamping virtualScrollLeft
     this.virtualScrollLeft = Math.max(0, this.virtualScrollLeft);
-    const maxPossibleVirtualScrollLeft = this.totalVirtualWidth - this.parentElement.clientWidth;
-    this.virtualScrollLeft = Math.min(this.virtualScrollLeft, maxPossibleVirtualScrollLeft > 0 ? maxPossibleVirtualScrollLeft : 0);
+    const maxPossibleVirtualScrollLeft =
+      this.totalVirtualWidth - this.parentElement.clientWidth;
+    this.virtualScrollLeft = Math.min(
+      this.virtualScrollLeft,
+      maxPossibleVirtualScrollLeft > 0 ? maxPossibleVirtualScrollLeft : 0,
+    );
 
     if (!this.updateQueued) {
       this.updateQueued = true;
@@ -364,7 +415,7 @@ class Virtualboy implements VirtualboyInstance {
     //   }
     // }
 
-    const shouldBeVisibleIds = new Set(elementsInViewport.map(ve => ve.id));
+    const shouldBeVisibleIds = new Set(elementsInViewport.map((ve) => ve.id));
 
     // Process Removals
     let removedCount = 0;
@@ -373,7 +424,10 @@ class Virtualboy implements VirtualboyInstance {
         const virtualElement = this.elements.get(idToRemove);
         if (virtualElement && virtualElement.isVisible) {
           // console.log(`[Virtualboy DEBUG]     Removing element ID: ${idToRemove}`); // Can be very verbose
-          this.originalRemoveChild.call(this.parentElement, virtualElement.element);
+          this.originalRemoveChild.call(
+            this.parentElement,
+            virtualElement.element,
+          );
           virtualElement.isVisible = false;
           removedCount++;
         }
@@ -387,15 +441,16 @@ class Virtualboy implements VirtualboyInstance {
     let addedToFragmentCount = 0;
 
     for (const virtualElement of elementsInViewport) {
-      if (!this.currentlyVisibleElements.has(virtualElement.id)) {
-        // console.log(`[Virtualboy DEBUG]     Adding element ID: ${virtualElement.id}`); // Can be very verbose
-        const domElement = virtualElement.element;
-        domElement.style.position = 'absolute';
+      const domElement = virtualElement.element;
+      domElement.style.position = "absolute";
       domElement.style.left = `${virtualElement.rect.x - this.virtualScrollLeft}px`;
       domElement.style.top = `${virtualElement.rect.y - this.virtualScrollTop}px`;
-        domElement.style.width = `${virtualElement.rect.width}px`;
-        domElement.style.height = `${virtualElement.rect.height}px`;
-        domElement.style.display = virtualElement.originalDisplay || 'block';
+      domElement.style.width = `${virtualElement.rect.width}px`;
+      domElement.style.height = `${virtualElement.rect.height}px`;
+      domElement.style.display = virtualElement.originalDisplay || "block";
+
+      if (!this.currentlyVisibleElements.has(virtualElement.id)) {
+        // console.log(`[Virtualboy DEBUG]     Adding element ID: ${virtualElement.id}`); // Can be very verbose
 
         fragment.appendChild(domElement);
         addedVirtualElements.push(virtualElement);
@@ -410,11 +465,14 @@ class Virtualboy implements VirtualboyInstance {
 
     if (fragment.childNodes.length > 0) {
       this.originalAppendChild.call(this.parentElement, fragment);
-    } else if (addedToFragmentCount === 0 && removedCount === 0 && elementsInViewport.length > 0) {
+    } else if (
+      addedToFragmentCount === 0 &&
+      removedCount === 0 &&
+      elementsInViewport.length > 0
+    ) {
       // This case means elementsInViewport are all already in currentlyVisibleElements.
       // console.log(`[Virtualboy DEBUG]   No DOM changes needed, all ${elementsInViewport.length} viewport elements already visible.`);
     }
-
 
     for (const virtualElement of addedVirtualElements) {
       virtualElement.isVisible = true;
@@ -438,22 +496,22 @@ class Virtualboy implements VirtualboyInstance {
   public getElementsForRect(queryRect: Rect): HTMLElement[] {
     if (!this.kdTree) return []; // Should not happen if initialized
     const virtualElements = this.kdTree.queryRange(queryRect);
-    return virtualElements.map(ve => ve.element);
+    return virtualElements.map((ve) => ve.element);
   }
 
   public getElementsAt(x: number, y: number): HTMLElement[] {
     if (!this.kdTree) return []; // Should not happen if initialized
     const virtualElements = this.kdTree.queryPoint(x, y);
-    return virtualElements.map(ve => ve.element);
+    return virtualElements.map((ve) => ve.element);
   }
 
   public remeasure(): void {
     const savedVirtualScrollTop = this.virtualScrollTop;
     const savedVirtualScrollLeft = this.virtualScrollLeft;
 
-
     // Clear currently visible elements from DOM and internal set
-    for (const id of Array.from(this.currentlyVisibleElements)) { // Iterate copy
+    for (const id of Array.from(this.currentlyVisibleElements)) {
+      // Iterate copy
       const ve = this.elements.get(id);
       if (ve && ve.isVisible) {
         this.originalRemoveChild.call(this.parentElement, ve.element);
@@ -482,7 +540,10 @@ class Virtualboy implements VirtualboyInstance {
       virtualElement.rect.y = newTotalVirtualHeight;
 
       newTotalVirtualHeight += virtualElement.rect.height;
-      newTotalVirtualWidth = Math.max(newTotalVirtualWidth, virtualElement.rect.x + virtualElement.rect.width);
+      newTotalVirtualWidth = Math.max(
+        newTotalVirtualWidth,
+        virtualElement.rect.x + virtualElement.rect.width,
+      );
 
       // Re-insert the updated element into the new KDTree
       this.kdTree.insert(virtualElement);
@@ -509,7 +570,9 @@ class Virtualboy implements VirtualboyInstance {
 
       const sizerEffectiveHeight = Virtualboy.MAX_SCROLL_HEIGHT;
       const maxScrollTopForSizer = sizerEffectiveHeight - parentClientHeight;
-      newParentScrollTop = scrollPercentageY * (maxScrollTopForSizer > 0 ? maxScrollTopForSizer : 0);
+      newParentScrollTop =
+        scrollPercentageY *
+        (maxScrollTopForSizer > 0 ? maxScrollTopForSizer : 0);
     }
 
     // Clamping newParentScrollTop
@@ -520,15 +583,15 @@ class Virtualboy implements VirtualboyInstance {
     if (this.sizerElement && this.sizerElement.style.height) {
       actualSizerHeightForScroll = parseFloat(this.sizerElement.style.height);
     }
-    const maxParentScrollTop = actualSizerHeightForScroll - this.parentElement.clientHeight;
+    const maxParentScrollTop =
+      actualSizerHeightForScroll - this.parentElement.clientHeight;
 
     if (maxParentScrollTop > 0) {
-        newParentScrollTop = Math.min(newParentScrollTop, maxParentScrollTop);
+      newParentScrollTop = Math.min(newParentScrollTop, maxParentScrollTop);
     } else {
-        newParentScrollTop = 0;
+      newParentScrollTop = 0;
     }
     this.parentElement.scrollTop = newParentScrollTop;
-
 
     // Horizontal scroll restoration (similar logging structure)
     let newParentScrollLeft: number;
@@ -545,7 +608,9 @@ class Virtualboy implements VirtualboyInstance {
 
       const sizerEffectiveWidth = Virtualboy.MAX_SCROLL_WIDTH;
       const maxScrollLeftForSizer = sizerEffectiveWidth - parentClientWidth;
-      newParentScrollLeft = scrollPercentageX * (maxScrollLeftForSizer > 0 ? maxScrollLeftForSizer : 0);
+      newParentScrollLeft =
+        scrollPercentageX *
+        (maxScrollLeftForSizer > 0 ? maxScrollLeftForSizer : 0);
     }
 
     // Clamping newParentScrollLeft
@@ -554,67 +619,92 @@ class Virtualboy implements VirtualboyInstance {
     if (this.sizerElement && this.sizerElement.style.width) {
       actualSizerWidthForScroll = parseFloat(this.sizerElement.style.width);
     }
-    const maxParentScrollLeft = actualSizerWidthForScroll - this.parentElement.clientWidth;
+    const maxParentScrollLeft =
+      actualSizerWidthForScroll - this.parentElement.clientWidth;
 
     if (maxParentScrollLeft > 0) {
-        newParentScrollLeft = Math.min(newParentScrollLeft, maxParentScrollLeft);
+      newParentScrollLeft = Math.min(newParentScrollLeft, maxParentScrollLeft);
     } else {
-        newParentScrollLeft = 0;
+      newParentScrollLeft = 0;
     }
     this.parentElement.scrollLeft = newParentScrollLeft;
-
 
     // After restoring parentElement.scrollTop/Left, we MUST update this.virtualScrollTop/Left
     // --- Recalculate virtualScrollTop based on restored parentElement.scrollTop ---
     // (This is the same logic as in handleScroll, so not repeating all sub-logs here for brevity,
     //  but in a real scenario, you might want the same level of detail or a shared logged function)
     if (this.totalVirtualHeight <= Virtualboy.MAX_SCROLL_HEIGHT) {
-        this.virtualScrollTop = this.parentElement.scrollTop;
+      this.virtualScrollTop = this.parentElement.scrollTop;
     } else {
-        // ... percentage logic as in handleScroll ... (briefly)
-        const sizerEffectiveHeight = Virtualboy.MAX_SCROLL_HEIGHT;
-        const parentClientHeight = this.parentElement.clientHeight;
-        const maxScrollTopForSizer = sizerEffectiveHeight - parentClientHeight;
-        if (maxScrollTopForSizer <= 0) { this.virtualScrollTop = 0; }
-        else {
-            const currentScrollTopForSizer = this.parentElement.scrollTop;
-            const scrollPercentageY = Math.max(0, Math.min(1, currentScrollTopForSizer / maxScrollTopForSizer));
-            const maxVirtualScrollTopVal = this.totalVirtualHeight - parentClientHeight;
-            this.virtualScrollTop = scrollPercentageY * (maxVirtualScrollTopVal > 0 ? maxVirtualScrollTopVal : 0);
-        }
+      // ... percentage logic as in handleScroll ... (briefly)
+      const sizerEffectiveHeight = Virtualboy.MAX_SCROLL_HEIGHT;
+      const parentClientHeight = this.parentElement.clientHeight;
+      const maxScrollTopForSizer = sizerEffectiveHeight - parentClientHeight;
+      if (maxScrollTopForSizer <= 0) {
+        this.virtualScrollTop = 0;
+      } else {
+        const currentScrollTopForSizer = this.parentElement.scrollTop;
+        const scrollPercentageY = Math.max(
+          0,
+          Math.min(1, currentScrollTopForSizer / maxScrollTopForSizer),
+        );
+        console.log(scrollPercentageY);
+        const maxVirtualScrollTopVal =
+          this.totalVirtualHeight - parentClientHeight;
+        this.virtualScrollTop =
+          scrollPercentageY *
+          (maxVirtualScrollTopVal > 0 ? maxVirtualScrollTopVal : 0);
+      }
     }
     this.virtualScrollTop = Math.max(0, this.virtualScrollTop);
-    const maxPossibleVirtualScrollTopRecalc = this.totalVirtualHeight - this.parentElement.clientHeight;
-    this.virtualScrollTop = Math.min(this.virtualScrollTop, maxPossibleVirtualScrollTopRecalc > 0 ? maxPossibleVirtualScrollTopRecalc : 0);
-
+    const maxPossibleVirtualScrollTopRecalc =
+      this.totalVirtualHeight - this.parentElement.clientHeight;
+    this.virtualScrollTop = Math.min(
+      this.virtualScrollTop,
+      maxPossibleVirtualScrollTopRecalc > 0
+        ? maxPossibleVirtualScrollTopRecalc
+        : 0,
+    );
 
     // --- Recalculate virtualScrollLeft based on restored parentElement.scrollLeft ---
     if (this.totalVirtualWidth <= Virtualboy.MAX_SCROLL_WIDTH) {
-        this.virtualScrollLeft = this.parentElement.scrollLeft;
+      this.virtualScrollLeft = this.parentElement.scrollLeft;
     } else {
-        // ... percentage logic as in handleScroll ... (briefly)
-        const sizerEffectiveWidth = Virtualboy.MAX_SCROLL_WIDTH;
-        const parentClientWidth = this.parentElement.clientWidth;
-        const maxScrollLeftForSizer = sizerEffectiveWidth - parentClientWidth;
-        if (maxScrollLeftForSizer <= 0) { this.virtualScrollLeft = 0; }
-        else {
-            const currentScrollLeftForSizer = this.parentElement.scrollLeft;
-            const scrollPercentageX = Math.max(0, Math.min(1, currentScrollLeftForSizer / maxScrollLeftForSizer));
-            const maxVirtualScrollLeftVal = this.totalVirtualWidth - parentClientWidth;
-            this.virtualScrollLeft = scrollPercentageX * (maxVirtualScrollLeftVal > 0 ? maxVirtualScrollLeftVal : 0);
-        }
+      // ... percentage logic as in handleScroll ... (briefly)
+      const sizerEffectiveWidth = Virtualboy.MAX_SCROLL_WIDTH;
+      const parentClientWidth = this.parentElement.clientWidth;
+      const maxScrollLeftForSizer = sizerEffectiveWidth - parentClientWidth;
+      if (maxScrollLeftForSizer <= 0) {
+        this.virtualScrollLeft = 0;
+      } else {
+        const currentScrollLeftForSizer = this.parentElement.scrollLeft;
+        const scrollPercentageX = Math.max(
+          0,
+          Math.min(1, currentScrollLeftForSizer / maxScrollLeftForSizer),
+        );
+        const maxVirtualScrollLeftVal =
+          this.totalVirtualWidth - parentClientWidth;
+        this.virtualScrollLeft =
+          scrollPercentageX *
+          (maxVirtualScrollLeftVal > 0 ? maxVirtualScrollLeftVal : 0);
+      }
     }
     this.virtualScrollLeft = Math.max(0, this.virtualScrollLeft);
-    const maxPossibleVirtualScrollLeftRecalc = this.totalVirtualWidth - this.parentElement.clientWidth;
-    this.virtualScrollLeft = Math.min(this.virtualScrollLeft, maxPossibleVirtualScrollLeftRecalc > 0 ? maxPossibleVirtualScrollLeftRecalc : 0);
-
+    const maxPossibleVirtualScrollLeftRecalc =
+      this.totalVirtualWidth - this.parentElement.clientWidth;
+    this.virtualScrollLeft = Math.min(
+      this.virtualScrollLeft,
+      maxPossibleVirtualScrollLeftRecalc > 0
+        ? maxPossibleVirtualScrollLeftRecalc
+        : 0,
+    );
 
     this.updateVisibleElements(); // This method now has its own logs.
   }
 
   public destroy(): void {
     // Remove event listener
-    this.parentElement.removeEventListener('scroll', this.scrollHandler);
+    this.parentElement.removeEventListener("scroll", this.scrollHandler);
 
     // Clear all visible elements from DOM
     // Iterate over a copy for modification safety, though direct iteration and removal might also work
@@ -622,7 +712,10 @@ class Virtualboy implements VirtualboyInstance {
       const virtualElement = this.elements.get(id);
       if (virtualElement && virtualElement.isVisible) {
         // Use originalRemoveChild as parentElement.removeChild is the overridden one
-        this.originalRemoveChild.call(this.parentElement, virtualElement.element);
+        this.originalRemoveChild.call(
+          this.parentElement,
+          virtualElement.element,
+        );
         virtualElement.isVisible = false; // Mark as not visible
       }
     }
@@ -640,8 +733,11 @@ class Virtualboy implements VirtualboyInstance {
     this.totalVirtualWidth = this.parentElement.clientWidth; // Reset to parent's current width
 
     // Sizer and Shadow DOM cleanup
-    if (this.sizerElement && this.sizerElement.parentElement === this.parentElement) {
-        this.originalRemoveChild.call(this.parentElement, this.sizerElement);
+    if (
+      this.sizerElement &&
+      this.sizerElement.parentElement === this.parentElement
+    ) {
+      this.originalRemoveChild.call(this.parentElement, this.sizerElement);
     }
     this.sizerElement = null;
 
@@ -655,7 +751,7 @@ class Virtualboy implements VirtualboyInstance {
     if (this.originalRemoveChild) {
       this.parentElement.removeChild = this.originalRemoveChild;
     }
-    console.log('Virtualboy instance destroyed.');
+    console.log("Virtualboy instance destroyed.");
   }
 
   // --- Methods to be added/completed later ---
@@ -664,7 +760,10 @@ class Virtualboy implements VirtualboyInstance {
   // render(): void
 }
 
-export function init(parentElement: HTMLElement, customMeasure?: MeasureFunction): VirtualboyInstance {
+export function init(
+  parentElement: HTMLElement,
+  customMeasure?: MeasureFunction,
+): VirtualboyInstance {
   const virtualboy = new Virtualboy(parentElement, customMeasure);
   return virtualboy;
 }
