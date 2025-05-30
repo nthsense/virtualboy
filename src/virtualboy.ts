@@ -313,7 +313,7 @@ class Virtualboy implements VirtualboyInstance {
           // Instead of removing, just hide the element
           virtualElement.element.style.display = 'none';
           virtualElement.isVisible = false;
-          this.currentlyVisibleElements.delete(idToRemove);
+          // this.currentlyVisibleElements.delete(idToRemove); // <-- THIS LINE IS COMMENTED OUT
         }
       }
     }
