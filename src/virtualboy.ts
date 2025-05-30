@@ -41,6 +41,8 @@ class Virtualboy implements VirtualboyInstance {
         this.sizerElement.style.zIndex = '-1';
         this.sizerElement.style.top = '0px';
         this.sizerElement.style.left = '0px';
+        this.sizerElement.style.width = '0px';
+        this.sizerElement.style.height = '0px';
         // Ensure it's not virtualized if it were to be appended via parentElement.appendChild
         // by using originalAppendChild.
         this.originalAppendChild.call(this.parentElement, this.sizerElement);
@@ -127,6 +129,9 @@ class Virtualboy implements VirtualboyInstance {
     const initialChildren = Array.from(this.parentElement.children);
     initialChildren.forEach(child => {
       if (child instanceof HTMLElement) {
+        if (child === this.sizerElement) { // Add this check
+          return; // Skip processing for the sizer element
+        }
         // isInitialDiscovery = true, so it will be removed from DOM after processing
         this.handleElementAdded(child, null, true);
       }
