@@ -318,6 +318,9 @@ class Virtualboy implements VirtualboyInstance {
     }
 
     // Process Additions
+    const fragment = document.createDocumentFragment();
+    const addedVirtualElements: VirtualElement[] = [];
+
     for (const virtualElement of elementsInViewport) {
       if (!this.currentlyVisibleElements.has(virtualElement.id)) {
         const domElement = virtualElement.element;
@@ -327,23 +330,26 @@ class Virtualboy implements VirtualboyInstance {
         domElement.style.top = `${virtualElement.rect.y}px`;
         domElement.style.width = `${virtualElement.rect.width}px`;
         domElement.style.height = `${virtualElement.rect.height}px`;
-        // Restore original display or use a sensible default like 'block'
-        // User-set 'display: none' on the element itself would be overridden here.
-        // If originalDisplay was 'none', it might need special handling or be documented.
         domElement.style.display = virtualElement.originalDisplay || 'block';
 
-        this.originalAppendChild.call(this.parentElement, domElement);
-        virtualElement.isVisible = true;
-        this.currentlyVisibleElements.add(virtualElement.id);
+        fragment.appendChild(domElement);
+        addedVirtualElements.push(virtualElement);
       } else {
         // Element is already visible. Ensure its isVisible flag is true.
-        // This also handles cases where an element might have been programmatically set to isVisible = false
-        // but is still in the viewport.
         const ve = this.elements.get(virtualElement.id);
-        if (ve) { // Check if element still exists in our main map
+        if (ve && !ve.isVisible) { // Only update if it was marked not visible
             ve.isVisible = true;
         }
       }
+    }
+
+    if (fragment.childNodes.length > 0) {
+      this.originalAppendChild.call(this.parentElement, fragment);
+    }
+
+    for (const virtualElement of addedVirtualElements) {
+      virtualElement.isVisible = true;
+      this.currentlyVisibleElements.add(virtualElement.id);
     }
     // Note: The parentElement should have appropriate CSS (e.g., position: relative)
     // for absolute positioning of children to work as expected. This is a user responsibility.

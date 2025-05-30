@@ -64,7 +64,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Remove highlight from previously highlighted elements
         currentlyHighlightedElements.forEach(el => {
-            if (el) el.classList.remove('highlight');
+            if (el && el.isConnected) { // Check el.isConnected
+                el.classList.remove('highlight');
+            }
         });
         currentlyHighlightedElements = []; // Reset the list
 
@@ -72,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (elementsUnderMouse.length > 0) {
             elementsAtPointSpan.textContent = elementsUnderMouse.map(el => el.title || el.textContent.substring(0,20)).join(', ');
             elementsUnderMouse.forEach(el => {
-                if (el) { // Ensure element is valid (it should be if returned by Virtualboy)
+                if (el && el.isConnected) { // Check el.isConnected
                     el.classList.add('highlight');
                     currentlyHighlightedElements.push(el);
                 }
@@ -85,7 +87,9 @@ document.addEventListener('DOMContentLoaded', () => {
     virtualContainer.addEventListener('mouseleave', () => {
         // Clear highlights when mouse leaves the container
         currentlyHighlightedElements.forEach(el => {
-            if (el) el.classList.remove('highlight');
+            if (el && el.isConnected) { // Check el.isConnected
+                el.classList.remove('highlight');
+            }
         });
         currentlyHighlightedElements = [];
         mouseCoordsSpan.textContent = '-';
