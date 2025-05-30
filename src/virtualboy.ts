@@ -20,6 +20,7 @@ class Virtualboy implements VirtualboyInstance {
   private shadowRoot: ShadowRoot | null = null;
   // Sizer element for creating scrollable area
   private sizerElement: HTMLDivElement | null = null;
+  private updateQueued: boolean = false; // Add this line
 
   // Store original DOM methods
   private originalAppendChild: <T extends Node>(newChild: T) => T;
@@ -290,7 +291,14 @@ class Virtualboy implements VirtualboyInstance {
   private handleScroll(): void {
     this.virtualScrollTop = this.parentElement.scrollTop;
     this.virtualScrollLeft = this.parentElement.scrollLeft;
-    this.updateVisibleElements();
+
+    if (!this.updateQueued) {
+      this.updateQueued = true;
+      requestAnimationFrame(() => {
+        this.updateVisibleElements();
+        this.updateQueued = false;
+      });
+    }
   }
 
   private updateVisibleElements(): void {
