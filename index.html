@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtualboy Demo</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f0f0f0; }
+        #virtual-container {
+            width: 500px;
+            height: 400px;
+            border: 2px solid #333;
+            overflow: auto; /* This is crucial for scrolling */
+            position: relative; /* Important for absolute positioning of children and sizer */
+            background-color: #fff;
+        }
+        .virtual-item {
+            /* Styles for the items added by Virtualboy's default rendering */
+            /* position: absolute; is set by Virtualboy */
+            border: 1px solid #ccc;
+            box-sizing: border-box; /* Makes width/height include padding and border */
+            display: flex; /* For centering content easily */
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #333;
+        }
+        .highlight {
+            border: 2px solid red !important; /* !important to override other borders */
+            box-shadow: 0 0 10px rgba(255,0,0,0.5);
+            /* background-color: rgba(255,0,0,0.1); Might obscure random color */
+        }
+        #info {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Virtualboy Demo Page</h1>
+    <p>Scroll the container and move your mouse over elements to see them highlight.</p>
+
+    <div id="virtual-container">
+        <!-- Virtualboy will populate this and add its sizer here -->
+    </div>
+
+    <div id="info">
+        Mouse (virtual): <span id="mouse-coords">-</span><br>
+        Elements at point: <span id="elements-at-point">-</span>
+    </div>
+
+    <!--
+        We'll assume virtualboy.bundle.js is created by a bundling step.
+        For local testing without a bundler immediately, one might try:
+        <script type="module" src="src/init.js"></script>
+        (if tsc output is configured for browser modules in a way it can resolve imports)
+        But for this plan, we assume a bundle.
+    -->
+    <script src="dist/virtualboy.bundle.js"></script>
+    <script src="demo.js"></script>
+</body>
+</html>
