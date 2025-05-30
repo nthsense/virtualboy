@@ -17,7 +17,6 @@ class Virtualboy implements VirtualboyInstance {
   private currentlyVisibleElements: Set<string>;
   // Bound scroll event handler
   private scrollHandler: () => void;
-  private shadowRoot: ShadowRoot | null = null;
   // Sizer element for creating scrollable area
   private sizerElement: HTMLDivElement | null = null;
   private updateQueued: boolean = false; // Add this line
@@ -34,6 +33,18 @@ class Virtualboy implements VirtualboyInstance {
     // Initialize original DOM methods first, as the default measureFunction will need them.
     // Note: overrideDOMMethods also *sets* the overrides on parentElement.
     this.overrideDOMMethods();
+
+    this.sizerElement = document.createElement('div');
+    if (this.sizerElement) { // sizerElement is created just before this
+        this.sizerElement.style.position = 'absolute';
+        this.sizerElement.style.visibility = 'hidden';
+        this.sizerElement.style.zIndex = '-1';
+        this.sizerElement.style.top = '0px';
+        this.sizerElement.style.left = '0px';
+        // Ensure it's not virtualized if it were to be appended via parentElement.appendChild
+        // by using originalAppendChild.
+        this.originalAppendChild.call(this.parentElement, this.sizerElement);
+    }
 
     if (customMeasureFn) {
       this.measureFunction = customMeasureFn;
@@ -55,36 +66,6 @@ class Virtualboy implements VirtualboyInstance {
     // totalVirtualHeight will typically grow as elements are added vertically.
     this.totalVirtualWidth = this.parentElement.clientWidth;
     this.totalVirtualHeight = 0;
-
-    // Attach Shadow DOM and create sizer within it
-    if (this.parentElement.attachShadow) {
-        this.shadowRoot = this.parentElement.attachShadow({ mode: 'open' });
-
-        this.sizerElement = document.createElement('div');
-        this.sizerElement.style.position = 'absolute';
-        this.sizerElement.style.top = '0';
-        this.sizerElement.style.left = '0';
-        this.sizerElement.style.visibility = 'hidden';
-        this.sizerElement.style.zIndex = '-1';
-        // 'data-virtualboy-internal' attribute is NOT set as it's encapsulated.
-
-        this.shadowRoot.appendChild(this.sizerElement);
-
-        // Create and append a default slot for light DOM content (rendered items)
-        const slotElement = document.createElement('slot');
-        this.shadowRoot.appendChild(slotElement);
-
-    } else {
-        console.error(
-            "Virtualboy: Shadow DOM not supported on the parentElement. " +
-            "Scrollbars may not function correctly without a sizer. " +
-            "Consider using a polyfill or ensuring the parentElement is styled to scroll its content."
-        );
-        // this.sizerElement remains null
-        // this.shadowRoot remains null
-    }
-    // updateSizer (called later) will handle the case where this.sizerElement is null.
-
 
     // Discover and virtualize existing elements.
     // This will use this.measureFunction, which might use getElementDimensions,
@@ -469,14 +450,10 @@ class Virtualboy implements VirtualboyInstance {
     this.totalVirtualWidth = this.parentElement.clientWidth; // Reset to parent's current width
 
     // Sizer and Shadow DOM cleanup
-    if (this.shadowRoot) {
-        // Clear all content from the shadow root, which includes the sizer.
-        this.shadowRoot.innerHTML = '';
-        this.shadowRoot = null;
+    if (this.sizerElement && this.sizerElement.parentElement === this.parentElement) {
+        this.originalRemoveChild.call(this.parentElement, this.sizerElement);
     }
-    // The sizerElement was a child of shadowRoot, so it's gone now if shadowRoot existed.
-    // If shadowRoot didn't exist, sizerElement was never created in the simplified constructor.
-    this.sizerElement = null; // Ensure sizerElement reference is always cleared.
+    this.sizerElement = null;
 
     // Restore original DOM methods
     if (this.originalAppendChild) {
