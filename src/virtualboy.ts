@@ -270,10 +270,7 @@ class Virtualboy implements VirtualboyInstance {
   }
 
   private updateSizer(): void {
-    console.log('[Virtualboy DEBUG] updateSizer called.'); // Log call
     if (this.sizerElement) {
-      console.log(`[Virtualboy DEBUG] updateSizer - Before: totalVirtualHeight=${this.totalVirtualHeight}, totalVirtualWidth=${this.totalVirtualWidth}, MAX_SCROLL_HEIGHT=${Virtualboy.MAX_SCROLL_HEIGHT}, MAX_SCROLL_WIDTH=${Virtualboy.MAX_SCROLL_WIDTH}`);
-
       const sizerHeight = this.totalVirtualHeight > Virtualboy.MAX_SCROLL_HEIGHT ?
         Virtualboy.MAX_SCROLL_HEIGHT : this.totalVirtualHeight;
       this.sizerElement.style.height = `${sizerHeight}px`;
@@ -281,40 +278,19 @@ class Virtualboy implements VirtualboyInstance {
       const sizerWidth = this.totalVirtualWidth > Virtualboy.MAX_SCROLL_WIDTH ?
         Virtualboy.MAX_SCROLL_WIDTH : this.totalVirtualWidth;
       this.sizerElement.style.width = `${sizerWidth}px`;
-
-      console.log(`[Virtualboy DEBUG] updateSizer - After: sizerElement.style.height=${this.sizerElement.style.height}, sizerElement.style.width=${this.sizerElement.style.width}`);
-    } else {
-      console.log('[Virtualboy DEBUG] updateSizer: sizerElement is null.');
     }
   }
 
   private handleScroll(): void {
-    if (this.sizerElement) {
-      console.log(`[Virtualboy DEBUG] handleScroll - Sizer dimensions at start: height=${this.sizerElement.style.height}, width=${this.sizerElement.style.width}`);
-    } else {
-      console.log('[Virtualboy DEBUG] handleScroll - Sizer element is null at start.');
-    }
-    console.log(`[Virtualboy DEBUG] handleScroll START --------------------------------`);
-    console.log(`[Virtualboy DEBUG]   Initial parentElement: scrollTop=${this.parentElement.scrollTop}, scrollLeft=${this.parentElement.scrollLeft}`);
-    console.log(`[Virtualboy DEBUG]   Current virtualScroll: top=${this.virtualScrollTop}, left=${this.virtualScrollLeft}`);
-    console.log(`[Virtualboy DEBUG]   Total virtual dims: height=${this.totalVirtualHeight}, width=${this.totalVirtualWidth}`);
-    console.log(`[Virtualboy DEBUG]   MAX_SCROLL_dims: height=${Virtualboy.MAX_SCROLL_HEIGHT}, width=${Virtualboy.MAX_SCROLL_WIDTH}`);
-    console.log(`[Virtualboy DEBUG]   Parent client dims: height=${this.parentElement.clientHeight}, width=${this.parentElement.clientWidth}`);
-
     // Vertical scroll calculation
-    console.log(`[Virtualboy DEBUG]   --- Vertical Scroll Calculation ---`);
     if (this.totalVirtualHeight <= Virtualboy.MAX_SCROLL_HEIGHT) {
-      console.log(`[Virtualboy DEBUG]     Mode: Direct (totalVirtualHeight <= MAX_SCROLL_HEIGHT)`);
       this.virtualScrollTop = this.parentElement.scrollTop;
     } else {
-      console.log(`[Virtualboy DEBUG]     Mode: Percentage (totalVirtualHeight > MAX_SCROLL_HEIGHT)`);
       const sizerEffectiveHeight = Virtualboy.MAX_SCROLL_HEIGHT;
       const parentClientHeight = this.parentElement.clientHeight;
       const maxScrollTopForSizer = sizerEffectiveHeight - parentClientHeight;
-      console.log(`[Virtualboy DEBUG]       sizerEffectiveHeight=${sizerEffectiveHeight}, parentClientHeight=${parentClientHeight}, maxScrollTopForSizer=${maxScrollTopForSizer}`);
 
       if (maxScrollTopForSizer <= 0) {
-        console.log(`[Virtualboy DEBUG]       Sizer not scrollable (maxScrollTopForSizer <= 0), virtualScrollTop = 0`);
         this.virtualScrollTop = 0;
       } else {
         const currentScrollTopForSizer = this.parentElement.scrollTop;
@@ -323,37 +299,26 @@ class Virtualboy implements VirtualboyInstance {
             scrollPercentageY = currentScrollTopForSizer / maxScrollTopForSizer;
         }
         scrollPercentageY = Math.max(0, Math.min(1, scrollPercentageY)); // Clamp
-        console.log(`[Virtualboy DEBUG]       currentScrollTopForSizer=${currentScrollTopForSizer}, scrollPercentageY=${scrollPercentageY}`);
 
         const maxVirtualScrollTop = this.totalVirtualHeight - parentClientHeight;
         this.virtualScrollTop = scrollPercentageY * (maxVirtualScrollTop > 0 ? maxVirtualScrollTop : 0);
-        console.log(`[Virtualboy DEBUG]       maxVirtualScrollTop=${maxVirtualScrollTop}, calculated virtualScrollTop (pre-clamp)=${this.virtualScrollTop}`);
       }
     }
     // Clamping virtualScrollTop
-    const preClampVST = this.virtualScrollTop;
     this.virtualScrollTop = Math.max(0, this.virtualScrollTop);
     const maxPossibleVirtualScrollTop = this.totalVirtualHeight - this.parentElement.clientHeight;
     this.virtualScrollTop = Math.min(this.virtualScrollTop, maxPossibleVirtualScrollTop > 0 ? maxPossibleVirtualScrollTop : 0);
-    if (preClampVST !== this.virtualScrollTop) {
-      console.log(`[Virtualboy DEBUG]     virtualScrollTop after clamping: ${this.virtualScrollTop} (was ${preClampVST})`);
-    }
 
 
     // Horizontal scroll calculation
-    console.log(`[Virtualboy DEBUG]   --- Horizontal Scroll Calculation ---`);
     if (this.totalVirtualWidth <= Virtualboy.MAX_SCROLL_WIDTH) {
-      console.log(`[Virtualboy DEBUG]     Mode: Direct (totalVirtualWidth <= MAX_SCROLL_WIDTH)`);
       this.virtualScrollLeft = this.parentElement.scrollLeft;
     } else {
-      console.log(`[Virtualboy DEBUG]     Mode: Percentage (totalVirtualWidth > MAX_SCROLL_WIDTH)`);
       const sizerEffectiveWidth = Virtualboy.MAX_SCROLL_WIDTH;
       const parentClientWidth = this.parentElement.clientWidth;
       const maxScrollLeftForSizer = sizerEffectiveWidth - parentClientWidth;
-      console.log(`[Virtualboy DEBUG]       sizerEffectiveWidth=${sizerEffectiveWidth}, parentClientWidth=${parentClientWidth}, maxScrollLeftForSizer=${maxScrollLeftForSizer}`);
 
       if (maxScrollLeftForSizer <= 0) {
-        console.log(`[Virtualboy DEBUG]       Sizer not scrollable (maxScrollLeftForSizer <= 0), virtualScrollLeft = 0`);
         this.virtualScrollLeft = 0;
       } else {
         const currentScrollLeftForSizer = this.parentElement.scrollLeft;
@@ -362,24 +327,15 @@ class Virtualboy implements VirtualboyInstance {
             scrollPercentageX = currentScrollLeftForSizer / maxScrollLeftForSizer;
         }
         scrollPercentageX = Math.max(0, Math.min(1, scrollPercentageX)); // Clamp
-        console.log(`[Virtualboy DEBUG]       currentScrollLeftForSizer=${currentScrollLeftForSizer}, scrollPercentageX=${scrollPercentageX}`);
 
         const maxVirtualScrollLeft = this.totalVirtualWidth - parentClientWidth;
         this.virtualScrollLeft = scrollPercentageX * (maxVirtualScrollLeft > 0 ? maxVirtualScrollLeft : 0);
-        console.log(`[Virtualboy DEBUG]       maxVirtualScrollLeft=${maxVirtualScrollLeft}, calculated virtualScrollLeft (pre-clamp)=${this.virtualScrollLeft}`);
       }
     }
     // Clamping virtualScrollLeft
-    const preClampVSL = this.virtualScrollLeft;
     this.virtualScrollLeft = Math.max(0, this.virtualScrollLeft);
     const maxPossibleVirtualScrollLeft = this.totalVirtualWidth - this.parentElement.clientWidth;
     this.virtualScrollLeft = Math.min(this.virtualScrollLeft, maxPossibleVirtualScrollLeft > 0 ? maxPossibleVirtualScrollLeft : 0);
-    if (preClampVSL !== this.virtualScrollLeft) {
-      console.log(`[Virtualboy DEBUG]     virtualScrollLeft after clamping: ${this.virtualScrollLeft} (was ${preClampVSL})`);
-    }
-
-    console.log(`[Virtualboy DEBUG]   Final calculated virtualScroll: top=${this.virtualScrollTop}, left=${this.virtualScrollLeft}`);
-    console.log(`[Virtualboy DEBUG] handleScroll END ----------------------------------`);
 
     if (!this.updateQueued) {
       this.updateQueued = true;
@@ -391,7 +347,6 @@ class Virtualboy implements VirtualboyInstance {
   }
 
   private updateVisibleElements(): void {
-    console.log(`[Virtualboy DEBUG] updateVisibleElements START ---------------------`);
     const viewportRect: Rect = {
       x: this.virtualScrollLeft,
       y: this.virtualScrollTop,
@@ -399,11 +354,7 @@ class Virtualboy implements VirtualboyInstance {
       height: this.parentElement.clientHeight,
     };
 
-    console.log(`[Virtualboy DEBUG]   Viewport: x=${viewportRect.x}, y=${viewportRect.y}, width=${viewportRect.width}, height=${viewportRect.height}`);
-    console.log(`[Virtualboy DEBUG]   (Using virtualScrollLeft=${this.virtualScrollLeft}, virtualScrollTop=${this.virtualScrollTop})`);
-
     const elementsInViewport = this.kdTree.queryRange(viewportRect); // VirtualElement[]
-    console.log(`[Virtualboy DEBUG]   KDTree queryRange found ${elementsInViewport.length} elements in viewport.`);
     // Optional: Log details of a few elements found
     // if (elementsInViewport.length > 0) {
     //   console.log(`[Virtualboy DEBUG]     First few elements in viewport:`);
@@ -429,9 +380,6 @@ class Virtualboy implements VirtualboyInstance {
         this.currentlyVisibleElements.delete(idToRemove); // Ensure it's removed from the set
       }
     }
-    if (removedCount > 0) {
-      console.log(`[Virtualboy DEBUG]   Removed ${removedCount} elements from DOM.`);
-    }
 
     // Process Additions
     const fragment = document.createDocumentFragment();
@@ -443,8 +391,8 @@ class Virtualboy implements VirtualboyInstance {
         // console.log(`[Virtualboy DEBUG]     Adding element ID: ${virtualElement.id}`); // Can be very verbose
         const domElement = virtualElement.element;
         domElement.style.position = 'absolute';
-        domElement.style.left = `${virtualElement.rect.x}px`;
-        domElement.style.top = `${virtualElement.rect.y}px`;
+      domElement.style.left = `${virtualElement.rect.x - this.virtualScrollLeft}px`;
+      domElement.style.top = `${virtualElement.rect.y - this.virtualScrollTop}px`;
         domElement.style.width = `${virtualElement.rect.width}px`;
         domElement.style.height = `${virtualElement.rect.height}px`;
         domElement.style.display = virtualElement.originalDisplay || 'block';
@@ -462,7 +410,6 @@ class Virtualboy implements VirtualboyInstance {
 
     if (fragment.childNodes.length > 0) {
       this.originalAppendChild.call(this.parentElement, fragment);
-      console.log(`[Virtualboy DEBUG]   Appended fragment with ${addedToFragmentCount} new elements to DOM.`);
     } else if (addedToFragmentCount === 0 && removedCount === 0 && elementsInViewport.length > 0) {
       // This case means elementsInViewport are all already in currentlyVisibleElements.
       // console.log(`[Virtualboy DEBUG]   No DOM changes needed, all ${elementsInViewport.length} viewport elements already visible.`);
@@ -473,8 +420,6 @@ class Virtualboy implements VirtualboyInstance {
       virtualElement.isVisible = true;
       this.currentlyVisibleElements.add(virtualElement.id);
     }
-    console.log(`[Virtualboy DEBUG]   Total currentlyVisibleElements: ${this.currentlyVisibleElements.size}`);
-    console.log(`[Virtualboy DEBUG] updateVisibleElements END -----------------------`);
   }
 
   // --- Public API Methods ---
@@ -503,13 +448,8 @@ class Virtualboy implements VirtualboyInstance {
   }
 
   public remeasure(): void {
-    console.log(`[Virtualboy DEBUG] remeasure START -----------------------------`);
-    //const currentScrollTop = this.parentElement.scrollTop; // Old way
-    //const currentScrollLeft = this.parentElement.scrollLeft; // Old way
     const savedVirtualScrollTop = this.virtualScrollTop;
     const savedVirtualScrollLeft = this.virtualScrollLeft;
-    console.log(`[Virtualboy DEBUG]   Saved virtualScroll: top=${savedVirtualScrollTop}, left=${savedVirtualScrollLeft}`);
-    console.log(`[Virtualboy DEBUG]   Initial parentElement scroll: top=${this.parentElement.scrollTop}, left=${this.parentElement.scrollLeft}`);
 
 
     // Clear currently visible elements from DOM and internal set
@@ -550,19 +490,15 @@ class Virtualboy implements VirtualboyInstance {
 
     this.totalVirtualHeight = newTotalVirtualHeight;
     this.totalVirtualWidth = newTotalVirtualWidth;
-    console.log(`[Virtualboy DEBUG]   After element remeasure & KDTree rebuild: totalVirtualHeight=${this.totalVirtualHeight}, totalVirtualWidth=${this.totalVirtualWidth}`);
 
     this.updateSizer();
 
     // Restore scroll position
-    console.log(`[Virtualboy DEBUG]   --- Scroll Position Restoration ---`);
     // Vertical scroll restoration
     let newParentScrollTop: number;
     if (this.totalVirtualHeight <= Virtualboy.MAX_SCROLL_HEIGHT) {
-      console.log(`[Virtualboy DEBUG]     Vertical Mode: Direct`);
       newParentScrollTop = savedVirtualScrollTop;
     } else {
-      console.log(`[Virtualboy DEBUG]     Vertical Mode: Percentage`);
       const parentClientHeight = this.parentElement.clientHeight;
       const maxVirtualScrollTop = this.totalVirtualHeight - parentClientHeight;
       let scrollPercentageY = 0;
@@ -570,24 +506,19 @@ class Virtualboy implements VirtualboyInstance {
         scrollPercentageY = savedVirtualScrollTop / maxVirtualScrollTop;
       }
       scrollPercentageY = Math.max(0, Math.min(1, scrollPercentageY)); // Clamp percentage
-      console.log(`[Virtualboy DEBUG]       savedVirtualScrollTop=${savedVirtualScrollTop}, maxVirtualScrollTop=${maxVirtualScrollTop}, scrollPercentageY=${scrollPercentageY}`);
 
       const sizerEffectiveHeight = Virtualboy.MAX_SCROLL_HEIGHT;
       const maxScrollTopForSizer = sizerEffectiveHeight - parentClientHeight;
       newParentScrollTop = scrollPercentageY * (maxScrollTopForSizer > 0 ? maxScrollTopForSizer : 0);
-      console.log(`[Virtualboy DEBUG]       sizerEffectiveHeight=${sizerEffectiveHeight}, maxScrollTopForSizer=${maxScrollTopForSizer}, calculated newParentScrollTop=${newParentScrollTop}`);
     }
 
     // Clamping newParentScrollTop
-    const preClampParentScrollTop = newParentScrollTop;
     newParentScrollTop = Math.max(0, newParentScrollTop);
     // Max possible scroll for parentElement with current sizer.
     // Ensure sizerElement and style.height are valid before parsing
     let actualSizerHeightForScroll = 0;
     if (this.sizerElement && this.sizerElement.style.height) {
       actualSizerHeightForScroll = parseFloat(this.sizerElement.style.height);
-    } else {
-      console.warn(`[Virtualboy DEBUG]     Sizer element or style.height is not available for scroll clamping.`);
     }
     const maxParentScrollTop = actualSizerHeightForScroll - this.parentElement.clientHeight;
 
@@ -596,20 +527,14 @@ class Virtualboy implements VirtualboyInstance {
     } else {
         newParentScrollTop = 0;
     }
-    if (preClampParentScrollTop !== newParentScrollTop) {
-      console.log(`[Virtualboy DEBUG]     newParentScrollTop after clamping: ${newParentScrollTop} (was ${preClampParentScrollTop}), maxParentScrollPossible=${maxParentScrollTop}`);
-    }
     this.parentElement.scrollTop = newParentScrollTop;
-    console.log(`[Virtualboy DEBUG]     Applied parentElement.scrollTop = ${this.parentElement.scrollTop}`);
 
 
     // Horizontal scroll restoration (similar logging structure)
     let newParentScrollLeft: number;
     if (this.totalVirtualWidth <= Virtualboy.MAX_SCROLL_WIDTH) {
-      console.log(`[Virtualboy DEBUG]     Horizontal Mode: Direct`);
       newParentScrollLeft = savedVirtualScrollLeft;
     } else {
-      console.log(`[Virtualboy DEBUG]     Horizontal Mode: Percentage`);
       const parentClientWidth = this.parentElement.clientWidth;
       const maxVirtualScrollLeft = this.totalVirtualWidth - parentClientWidth;
       let scrollPercentageX = 0;
@@ -617,22 +542,17 @@ class Virtualboy implements VirtualboyInstance {
         scrollPercentageX = savedVirtualScrollLeft / maxVirtualScrollLeft;
       }
       scrollPercentageX = Math.max(0, Math.min(1, scrollPercentageX));
-      console.log(`[Virtualboy DEBUG]       savedVirtualScrollLeft=${savedVirtualScrollLeft}, maxVirtualScrollLeft=${maxVirtualScrollLeft}, scrollPercentageX=${scrollPercentageX}`);
 
       const sizerEffectiveWidth = Virtualboy.MAX_SCROLL_WIDTH;
       const maxScrollLeftForSizer = sizerEffectiveWidth - parentClientWidth;
       newParentScrollLeft = scrollPercentageX * (maxScrollLeftForSizer > 0 ? maxScrollLeftForSizer : 0);
-      console.log(`[Virtualboy DEBUG]       sizerEffectiveWidth=${sizerEffectiveWidth}, maxScrollLeftForSizer=${maxScrollLeftForSizer}, calculated newParentScrollLeft=${newParentScrollLeft}`);
     }
 
     // Clamping newParentScrollLeft
-    const preClampParentScrollLeft = newParentScrollLeft;
     newParentScrollLeft = Math.max(0, newParentScrollLeft);
     let actualSizerWidthForScroll = 0;
     if (this.sizerElement && this.sizerElement.style.width) {
       actualSizerWidthForScroll = parseFloat(this.sizerElement.style.width);
-    } else {
-      console.warn(`[Virtualboy DEBUG]     Sizer element or style.width is not available for scroll clamping.`);
     }
     const maxParentScrollLeft = actualSizerWidthForScroll - this.parentElement.clientWidth;
 
@@ -641,18 +561,10 @@ class Virtualboy implements VirtualboyInstance {
     } else {
         newParentScrollLeft = 0;
     }
-     if (preClampParentScrollLeft !== newParentScrollLeft) {
-      console.log(`[Virtualboy DEBUG]     newParentScrollLeft after clamping: ${newParentScrollLeft} (was ${preClampParentScrollLeft}), maxParentScrollPossible=${maxParentScrollLeft}`);
-    }
     this.parentElement.scrollLeft = newParentScrollLeft;
-    console.log(`[Virtualboy DEBUG]     Applied parentElement.scrollLeft = ${this.parentElement.scrollLeft}`);
 
 
     // After restoring parentElement.scrollTop/Left, we MUST update this.virtualScrollTop/Left
-    console.log(`[Virtualboy DEBUG]   --- Recalculating virtualScrollTop/Left after parent scroll restoration ---`);
-    const oldVirtualScrollTop = this.virtualScrollTop; // For comparison after recalc
-    const oldVirtualScrollLeft = this.virtualScrollLeft; // For comparison after recalc
-
     // --- Recalculate virtualScrollTop based on restored parentElement.scrollTop ---
     // (This is the same logic as in handleScroll, so not repeating all sub-logs here for brevity,
     //  but in a real scenario, you might want the same level of detail or a shared logged function)
@@ -674,7 +586,6 @@ class Virtualboy implements VirtualboyInstance {
     this.virtualScrollTop = Math.max(0, this.virtualScrollTop);
     const maxPossibleVirtualScrollTopRecalc = this.totalVirtualHeight - this.parentElement.clientHeight;
     this.virtualScrollTop = Math.min(this.virtualScrollTop, maxPossibleVirtualScrollTopRecalc > 0 ? maxPossibleVirtualScrollTopRecalc : 0);
-    console.log(`[Virtualboy DEBUG]     Recalculated virtualScrollTop: ${this.virtualScrollTop} (was ${oldVirtualScrollTop} before this recalc)`);
 
 
     // --- Recalculate virtualScrollLeft based on restored parentElement.scrollLeft ---
@@ -696,11 +607,9 @@ class Virtualboy implements VirtualboyInstance {
     this.virtualScrollLeft = Math.max(0, this.virtualScrollLeft);
     const maxPossibleVirtualScrollLeftRecalc = this.totalVirtualWidth - this.parentElement.clientWidth;
     this.virtualScrollLeft = Math.min(this.virtualScrollLeft, maxPossibleVirtualScrollLeftRecalc > 0 ? maxPossibleVirtualScrollLeftRecalc : 0);
-    console.log(`[Virtualboy DEBUG]     Recalculated virtualScrollLeft: ${this.virtualScrollLeft} (was ${oldVirtualScrollLeft} before this recalc)`);
 
 
     this.updateVisibleElements(); // This method now has its own logs.
-    console.log(`[Virtualboy DEBUG] remeasure END -------------------------------`);
   }
 
   public destroy(): void {

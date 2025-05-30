@@ -368,3 +368,131 @@ describe('Virtualboy remeasure Logic', () => {
         expect((virtualboy as any).virtualScrollTop).toBeCloseTo(intendedSavedVirtualScrollTop);
     });
 });
+
+describe('Virtualboy updateVisibleElements - Relative Positioning', () => {
+    let parentElement: any;
+    let virtualboy: Virtualboy;
+    let sizerElement: HTMLElement; // Though not directly used in these tests, setup might create it
+    let mockQueryRangeFn: jest.Mock;
+
+    beforeEach(() => {
+        parentElement = mockParentElement();
+        (global as any).requestAnimationFrame = jest.fn((cb: FrameRequestCallback) => { cb(0); return 0; });
+
+        // Setup mock KDTree
+        mockQueryRangeFn = jest.fn();
+
+        // Correctly get the KDTree class for spying on its prototype
+        // Assuming KDTree is exported as a class from './kdTree'
+        // If './kdTree' exports { KDTree: class KDTreeImpl }, then this is fine.
+        // If it's a default export, syntax would differ. Given Virtualboy news it up, it's likely a named export.
+        const kdTreeModule = jest.requireActual('./kdTree');
+        const OriginalKDTree = kdTreeModule.KDTree;
+
+        // Spy on the queryRange method of KDTree instances
+        // This spy will affect all instances of KDTree created after this point,
+        // which is what we want if Virtualboy instantiates KDTree internally.
+        jest.spyOn(OriginalKDTree.prototype, 'queryRange').mockImplementation(mockQueryRangeFn);
+
+        // Mock document.createElement for sizer, similar to other describe blocks
+        const actualCreateElement = document.createElement;
+        jest.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+            if (tagName === 'div') {
+                // This will be the sizer element. Capture it if needed, or just return a mock.
+                sizerElement = mockElement('virtualboy-sizer-for-uve', 0, 0);
+                return sizerElement;
+            }
+            return actualCreateElement.call(document, tagName);
+        });
+
+        virtualboy = new Virtualboy(parentElement);
+
+        // Restore original document.createElement immediately after Virtualboy constructor
+        // to avoid interfering with other element creations in tests if any.
+        (document.createElement as jest.Mock).mockRestore();
+
+        // It's possible Virtualboy's KDTree instance is created in its constructor.
+        // The spyOn prototype should ideally catch this.
+        // If direct assignment was ever needed (e.g. (virtualboy as any).kdTree.queryRange = mockQueryRangeFn),
+        // it would go here, but prototype spy is cleaner.
+    });
+
+    afterEach(() => {
+        if (virtualboy) {
+            virtualboy.destroy();
+        }
+        jest.restoreAllMocks(); // Restores original implementations of spied methods
+        jest.clearAllMocks();   // Clears call counts etc. for all mocks
+    });
+
+    test('should position a single element relative to virtualScrollTop/Left', () => {
+        (virtualboy as any).virtualScrollTop = 200;
+        (virtualboy as any).virtualScrollLeft = 30;
+
+        const mockElem = mockElement('el1');
+        const veData: VirtualElement = {
+            id: 'el1', element: mockElem,
+            rect: { x: 40, y: 250, width: 10, height: 10 },
+            isVisible: false, originalDisplay: 'block'
+        };
+        mockQueryRangeFn.mockReturnValue([veData]);
+
+        const appendedElements: HTMLElement[] = [];
+        // Ensure originalAppendChild on the mock parent is a Jest mock function for this test
+        parentElement.originalAppendChild = jest.fn((node: Node) => {
+            if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+                Array.from(node.childNodes).forEach(child => {
+                    if (child.nodeType === Node.ELEMENT_NODE) {
+                        appendedElements.push(child as HTMLElement);
+                    }
+                });
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+                appendedElements.push(node as HTMLElement);
+            }
+            // Default mock behavior: return the node
+            return node;
+        });
+
+        (virtualboy as any).updateVisibleElements();
+
+        expect(appendedElements.length).toBe(1);
+        const renderedElement = appendedElements[0];
+        expect(renderedElement.style.top).toBe(`${250 - 200}px`); // 50px
+        expect(renderedElement.style.left).toBe(`${40 - 30}px`);  // 10px
+        expect(veData.isVisible).toBe(true); // Check the VirtualElement state
+        expect((virtualboy as any).currentlyVisibleElements.has('el1')).toBe(true);
+    });
+
+    test('should position elements at 0,0 if they align with virtualScrollTop/Left', () => {
+        (virtualboy as any).virtualScrollTop = 300;
+        (virtualboy as any).virtualScrollLeft = 70;
+
+        const mockElem = mockElement('el2');
+        const veData: VirtualElement = {
+            id: 'el2', element: mockElem,
+            rect: { x: 70, y: 300, width: 10, height: 10 },
+            isVisible: false, originalDisplay: 'block'
+        };
+        mockQueryRangeFn.mockReturnValue([veData]);
+
+        const appendedElements: HTMLElement[] = [];
+        // Simplified append capture for this test, assuming single element in fragment
+        parentElement.originalAppendChild = jest.fn((node: Node) => {
+             if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE && node.childNodes.length > 0) {
+                appendedElements.push(node.childNodes[0] as HTMLElement);
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+                appendedElements.push(node as HTMLElement);
+            }
+            return node;
+        });
+
+        (virtualboy as any).updateVisibleElements();
+
+        expect(appendedElements.length).toBe(1);
+        const renderedElement = appendedElements[0];
+        expect(renderedElement.style.top).toBe('0px');
+        expect(renderedElement.style.left).toBe('0px');
+        expect(veData.isVisible).toBe(true);
+        expect((virtualboy as any).currentlyVisibleElements.has('el2')).toBe(true);
+    });
+});
