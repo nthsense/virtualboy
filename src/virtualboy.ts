@@ -3,6 +3,8 @@ import { getElementDimensions } from './measure';
 import { KDTree } from './kdTree';
 
 class Virtualboy implements VirtualboyInstance {
+  private static readonly MAX_SCROLL_HEIGHT: number = 1000000;
+  private static readonly MAX_SCROLL_WIDTH: number = 1000000;
   private parentElement: HTMLElement;
   private measureFunction: MeasureFunction;
   private kdTree: KDTree;
@@ -269,14 +271,71 @@ class Virtualboy implements VirtualboyInstance {
 
   private updateSizer(): void {
     if (this.sizerElement) {
-      this.sizerElement.style.width = `${this.totalVirtualWidth}px`;
-      this.sizerElement.style.height = `${this.totalVirtualHeight}px`;
+    const sizerHeight = this.totalVirtualHeight > Virtualboy.MAX_SCROLL_HEIGHT ?
+      Virtualboy.MAX_SCROLL_HEIGHT : this.totalVirtualHeight;
+    this.sizerElement.style.height = `${sizerHeight}px`;
+
+    const sizerWidth = this.totalVirtualWidth > Virtualboy.MAX_SCROLL_WIDTH ?
+      Virtualboy.MAX_SCROLL_WIDTH : this.totalVirtualWidth;
+    this.sizerElement.style.width = `${sizerWidth}px`;
     }
   }
 
   private handleScroll(): void {
-    this.virtualScrollTop = this.parentElement.scrollTop;
-    this.virtualScrollLeft = this.parentElement.scrollLeft;
+    // Vertical scroll calculation
+    if (this.totalVirtualHeight <= Virtualboy.MAX_SCROLL_HEIGHT) {
+      this.virtualScrollTop = this.parentElement.scrollTop;
+    } else {
+      const sizerEffectiveHeight = Virtualboy.MAX_SCROLL_HEIGHT;
+      const parentClientHeight = this.parentElement.clientHeight;
+      // Max scrollable distance for the sizer itself
+      const maxScrollTopForSizer = sizerEffectiveHeight - parentClientHeight;
+
+      if (maxScrollTopForSizer <= 0) {
+        // If sizer isn't scrollable (or parent is larger), virtual scroll is 0
+        this.virtualScrollTop = 0;
+      } else {
+        const currentScrollTopForSizer = this.parentElement.scrollTop;
+        // Clamp scrollPercentageY to be between 0 and 1
+        const scrollPercentageY = Math.max(0, Math.min(1, currentScrollTopForSizer / maxScrollTopForSizer));
+
+        // Max scrollable distance for the virtual content
+        const maxVirtualScrollTop = this.totalVirtualHeight - parentClientHeight;
+        this.virtualScrollTop = scrollPercentageY * (maxVirtualScrollTop > 0 ? maxVirtualScrollTop : 0);
+      }
+    }
+    // Ensure virtualScrollTop is not negative and not beyond max possible virtual scroll
+    this.virtualScrollTop = Math.max(0, this.virtualScrollTop);
+    const maxPossibleVirtualScrollTop = this.totalVirtualHeight - this.parentElement.clientHeight;
+    this.virtualScrollTop = Math.min(this.virtualScrollTop, maxPossibleVirtualScrollTop > 0 ? maxPossibleVirtualScrollTop : 0);
+
+
+    // Horizontal scroll calculation
+    if (this.totalVirtualWidth <= Virtualboy.MAX_SCROLL_WIDTH) {
+      this.virtualScrollLeft = this.parentElement.scrollLeft;
+    } else {
+      const sizerEffectiveWidth = Virtualboy.MAX_SCROLL_WIDTH;
+      const parentClientWidth = this.parentElement.clientWidth;
+      // Max scrollable distance for the sizer itself
+      const maxScrollLeftForSizer = sizerEffectiveWidth - parentClientWidth;
+
+      if (maxScrollLeftForSizer <= 0) {
+        // If sizer isn't scrollable (or parent is larger), virtual scroll is 0
+        this.virtualScrollLeft = 0;
+      } else {
+        const currentScrollLeftForSizer = this.parentElement.scrollLeft;
+        // Clamp scrollPercentageX to be between 0 and 1
+        const scrollPercentageX = Math.max(0, Math.min(1, currentScrollLeftForSizer / maxScrollLeftForSizer));
+
+        // Max scrollable distance for the virtual content
+        const maxVirtualScrollLeft = this.totalVirtualWidth - parentClientWidth;
+        this.virtualScrollLeft = scrollPercentageX * (maxVirtualScrollLeft > 0 ? maxVirtualScrollLeft : 0);
+      }
+    }
+    // Ensure virtualScrollLeft is not negative and not beyond max possible virtual scroll
+    this.virtualScrollLeft = Math.max(0, this.virtualScrollLeft);
+    const maxPossibleVirtualScrollLeft = this.totalVirtualWidth - this.parentElement.clientWidth;
+    this.virtualScrollLeft = Math.min(this.virtualScrollLeft, maxPossibleVirtualScrollLeft > 0 ? maxPossibleVirtualScrollLeft : 0);
 
     if (!this.updateQueued) {
       this.updateQueued = true;
@@ -289,8 +348,8 @@ class Virtualboy implements VirtualboyInstance {
 
   private updateVisibleElements(): void {
     const viewportRect: Rect = {
-      x: this.parentElement.scrollLeft,
-      y: this.parentElement.scrollTop,
+      x: this.virtualScrollLeft,
+      y: this.virtualScrollTop,
       width: this.parentElement.clientWidth,
       height: this.parentElement.clientHeight,
     };
@@ -375,8 +434,8 @@ class Virtualboy implements VirtualboyInstance {
   }
 
   public remeasure(): void {
-    const currentScrollTop = this.parentElement.scrollTop;
-    const currentScrollLeft = this.parentElement.scrollLeft;
+    const savedVirtualScrollTop = this.virtualScrollTop;
+    const savedVirtualScrollLeft = this.virtualScrollLeft;
 
     // Clear currently visible elements from DOM and internal set
     for (const id of Array.from(this.currentlyVisibleElements)) { // Iterate copy
@@ -418,10 +477,110 @@ class Virtualboy implements VirtualboyInstance {
     this.totalVirtualWidth = newTotalVirtualWidth;
     this.updateSizer();
 
-    // Restore scroll position. This is important to do *before* updateVisibleElements
-    // so that the viewport calculation is based on the intended scroll state.
-    this.parentElement.scrollTop = currentScrollTop;
-    this.parentElement.scrollLeft = currentScrollLeft;
+    // Restore scroll position
+    // Vertical scroll restoration
+    if (this.totalVirtualHeight <= Virtualboy.MAX_SCROLL_HEIGHT) {
+      this.parentElement.scrollTop = savedVirtualScrollTop;
+    } else {
+      const parentClientHeight = this.parentElement.clientHeight;
+      const maxVirtualScrollTop = this.totalVirtualHeight - parentClientHeight;
+      let scrollPercentageY = 0;
+      if (maxVirtualScrollTop > 0) {
+        scrollPercentageY = savedVirtualScrollTop / maxVirtualScrollTop;
+      }
+      scrollPercentageY = Math.max(0, Math.min(1, scrollPercentageY)); // Clamp percentage
+
+      const sizerEffectiveHeight = Virtualboy.MAX_SCROLL_HEIGHT;
+      const maxScrollTopForSizer = sizerEffectiveHeight - parentClientHeight;
+
+      this.parentElement.scrollTop = scrollPercentageY * (maxScrollTopForSizer > 0 ? maxScrollTopForSizer : 0);
+    }
+    // Ensure parentElement.scrollTop is not set to a negative value or beyond its actual max scroll.
+    this.parentElement.scrollTop = Math.max(0, this.parentElement.scrollTop);
+    // Max possible scroll for parentElement with current sizer.
+    const actualSizerHeightForScroll = parseFloat(this.sizerElement!.style.height); // Read current sizer height
+    const maxParentScrollTop = actualSizerHeightForScroll - this.parentElement.clientHeight;
+    if (maxParentScrollTop > 0) {
+        this.parentElement.scrollTop = Math.min(this.parentElement.scrollTop, maxParentScrollTop);
+    } else {
+        this.parentElement.scrollTop = 0;
+    }
+
+
+    // Horizontal scroll restoration
+    if (this.totalVirtualWidth <= Virtualboy.MAX_SCROLL_WIDTH) {
+      this.parentElement.scrollLeft = savedVirtualScrollLeft;
+    } else {
+      const parentClientWidth = this.parentElement.clientWidth;
+      const maxVirtualScrollLeft = this.totalVirtualWidth - parentClientWidth;
+      let scrollPercentageX = 0;
+      if (maxVirtualScrollLeft > 0) {
+        scrollPercentageX = savedVirtualScrollLeft / maxVirtualScrollLeft;
+      }
+      scrollPercentageX = Math.max(0, Math.min(1, scrollPercentageX)); // Clamp percentage
+
+      const sizerEffectiveWidth = Virtualboy.MAX_SCROLL_WIDTH;
+      const maxScrollLeftForSizer = sizerEffectiveWidth - parentClientWidth;
+
+      this.parentElement.scrollLeft = scrollPercentageX * (maxScrollLeftForSizer > 0 ? maxScrollLeftForSizer : 0);
+    }
+    // Ensure parentElement.scrollLeft is not set to a negative value or beyond its actual max scroll.
+    this.parentElement.scrollLeft = Math.max(0, this.parentElement.scrollLeft);
+    const actualSizerWidthForScroll = parseFloat(this.sizerElement!.style.width); // Read current sizer width
+    const maxParentScrollLeft = actualSizerWidthForScroll - this.parentElement.clientWidth;
+    if (maxParentScrollLeft > 0) {
+        this.parentElement.scrollLeft = Math.min(this.parentElement.scrollLeft, maxParentScrollLeft);
+    } else {
+        this.parentElement.scrollLeft = 0;
+    }
+
+    // After restoring parentElement.scrollTop/Left, we MUST update this.virtualScrollTop/Left
+    // to be consistent with the new parentElement.scrollTop/Left, especially if the totalVirtualHeight/Width
+    // changed in a way that alters the scroll mapping (e.g. from direct to percentage or vice-versa).
+    // The simplest way is to re-run the core logic of handleScroll, but without queuing an update.
+    // This logic is now duplicated from handleScroll, consider refactoring into a helper if this grows.
+
+    // --- Recalculate virtualScrollTop based on restored parentElement.scrollTop ---
+    if (this.totalVirtualHeight <= Virtualboy.MAX_SCROLL_HEIGHT) {
+        this.virtualScrollTop = this.parentElement.scrollTop;
+    } else {
+        const sizerEffectiveHeight = Virtualboy.MAX_SCROLL_HEIGHT;
+        const parentClientHeight = this.parentElement.clientHeight;
+        const maxScrollTopForSizer = sizerEffectiveHeight - parentClientHeight;
+
+        if (maxScrollTopForSizer <= 0) {
+            this.virtualScrollTop = 0;
+        } else {
+            const currentScrollTopForSizer = this.parentElement.scrollTop;
+            const scrollPercentageY = Math.max(0, Math.min(1, currentScrollTopForSizer / maxScrollTopForSizer));
+            const maxVirtualScrollTopVal = this.totalVirtualHeight - parentClientHeight;
+            this.virtualScrollTop = scrollPercentageY * (maxVirtualScrollTopVal > 0 ? maxVirtualScrollTopVal : 0);
+        }
+    }
+    this.virtualScrollTop = Math.max(0, this.virtualScrollTop);
+    const maxPossibleVirtualScrollTop = this.totalVirtualHeight - this.parentElement.clientHeight;
+    this.virtualScrollTop = Math.min(this.virtualScrollTop, maxPossibleVirtualScrollTop > 0 ? maxPossibleVirtualScrollTop : 0);
+
+    // --- Recalculate virtualScrollLeft based on restored parentElement.scrollLeft ---
+    if (this.totalVirtualWidth <= Virtualboy.MAX_SCROLL_WIDTH) {
+        this.virtualScrollLeft = this.parentElement.scrollLeft;
+    } else {
+        const sizerEffectiveWidth = Virtualboy.MAX_SCROLL_WIDTH;
+        const parentClientWidth = this.parentElement.clientWidth;
+        const maxScrollLeftForSizer = sizerEffectiveWidth - parentClientWidth;
+
+        if (maxScrollLeftForSizer <= 0) {
+            this.virtualScrollLeft = 0;
+        } else {
+            const currentScrollLeftForSizer = this.parentElement.scrollLeft;
+            const scrollPercentageX = Math.max(0, Math.min(1, currentScrollLeftForSizer / maxScrollLeftForSizer));
+            const maxVirtualScrollLeftVal = this.totalVirtualWidth - parentClientWidth;
+            this.virtualScrollLeft = scrollPercentageX * (maxVirtualScrollLeftVal > 0 ? maxVirtualScrollLeftVal : 0);
+        }
+    }
+    this.virtualScrollLeft = Math.max(0, this.virtualScrollLeft);
+    const maxPossibleVirtualScrollLeft = this.totalVirtualWidth - this.parentElement.clientWidth;
+    this.virtualScrollLeft = Math.min(this.virtualScrollLeft, maxPossibleVirtualScrollLeft > 0 ? maxPossibleVirtualScrollLeft : 0);
 
     // Re-render elements based on the new layout and restored scroll position
     this.updateVisibleElements();
