@@ -303,48 +303,80 @@ class Virtualboy implements VirtualboyInstance {
 
     const elementsInViewport = this.kdTree.queryRange(viewportRect); // VirtualElement[]
     const shouldBeVisibleIds = new Set(elementsInViewport.map(ve => ve.id));
+    const idsToRemoveFromVisibleSet: string[] = [];
 
-    // Process Removals - This block should be active
-    // Iterate over a copy of the set because we might modify it
+    // Process Removals - Identify elements to "soft remove" and mark for actual Set deletion
+    // Iterate over a copy of the set because we might modify it if we were deleting directly
     for (const idToRemove of Array.from(this.currentlyVisibleElements)) {
       if (!shouldBeVisibleIds.has(idToRemove)) {
         const virtualElement = this.elements.get(idToRemove);
-        if (virtualElement && virtualElement.isVisible) {
-          // Instead of removing, just hide the element
+        if (virtualElement && virtualElement.isVisible) { // Process only if currently marked as visible
           virtualElement.element.style.display = 'none';
           virtualElement.isVisible = false;
-          // this.currentlyVisibleElements.delete(idToRemove); // <-- THIS LINE IS COMMENTED OUT
+          idsToRemoveFromVisibleSet.push(idToRemove); // Add to list for delayed Set.delete()
         }
       }
     }
 
-    // Process Additions - This block is now active again
-    for (const virtualElement of elementsInViewport) {
-      if (!this.currentlyVisibleElements.has(virtualElement.id)) {
-        const domElement = virtualElement.element;
-        // It's crucial to reset styles that might have been set by user or previous rendering
-        domElement.style.position = 'absolute';
-        domElement.style.left = `${virtualElement.rect.x}px`;
-        domElement.style.top = `${virtualElement.rect.y}px`;
-        domElement.style.width = `${virtualElement.rect.width}px`;
-        domElement.style.height = `${virtualElement.rect.height}px`;
-        // Restore original display or use a sensible default like 'block'
-        // User-set 'display: none' on the element itself would be overridden here.
-        // If originalDisplay was 'none', it might need special handling or be documented.
-        domElement.style.display = virtualElement.originalDisplay || 'block';
+    // Process Additions / Re-showing
+    for (const virtualElementInViewport of elementsInViewport) {
+      // Use the ID from the element found in the viewport query
+      const elementId = virtualElementInViewport.id;
+      const existingVE = this.elements.get(elementId); // Get the authoritative VirtualElement from our main map
 
-        this.originalAppendChild.call(this.parentElement, domElement);
-        virtualElement.isVisible = true;
-        this.currentlyVisibleElements.add(virtualElement.id);
-      } else {
-        // Element is already visible. Ensure its isVisible flag is true.
-        // This also handles cases where an element might have been programmatically set to isVisible = false
-        // but is still in the viewport.
-        const ve = this.elements.get(virtualElement.id);
-        if (ve) { // Check if element still exists in our main map
-            ve.isVisible = true;
-        }
+      if (!existingVE) {
+        // This should ideally not happen if elements are managed correctly via handleElementAdded/Removed
+        console.warn(`Virtualboy: Element with ID '${elementId}' found in viewport query but not in master elements map.`);
+        continue;
       }
+
+      if (!this.currentlyVisibleElements.has(elementId)) {
+        // This element is TRULY NEW to the visible set for this update cycle
+        // (it wasn't in currentlyVisibleElements at the start of this function).
+        // This path handles elements that were fully removed (not just soft-removed) or are new.
+        // However, with soft-removal, this path might be less common for items just scrolling in/out.
+        // The more common path for re-showing soft-removed items is the 'else' block below.
+        // For this diagnostic, we'll assume this path is for elements that were genuinely not tracked as visible.
+
+        existingVE.element.style.position = 'absolute';
+        existingVE.element.style.left = `${existingVE.rect.x}px`;
+        existingVE.element.style.top = `${existingVE.rect.y}px`;
+        existingVE.element.style.width = `${existingVE.rect.width}px`;
+        existingVE.element.style.height = `${existingVE.rect.height}px`;
+        existingVE.element.style.display = existingVE.originalDisplay || 'block';
+
+        // If the element was previously 'display:none', it's already in the DOM.
+        // If it's a brand new element (e.g. added via public API and then scrolled into view),
+        // it might not be. This appendChild is generally safe; browsers handle it.
+        this.originalAppendChild.call(this.parentElement, existingVE.element);
+        existingVE.isVisible = true;
+        this.currentlyVisibleElements.add(elementId); // Add to the live set of visible elements
+      } else {
+        // Element ID IS in currentlyVisibleElements.
+        // This means either it remained visible from the last cycle OR
+        // it was "soft removed" (display:none, isVisible:false) in the loop above,
+        // BUT its ID was NOT yet deleted from currentlyVisibleElements (that's delayed).
+        if (!existingVE.isVisible) {
+            // This is a soft-removed element that's back in viewport. Make it visible again.
+            existingVE.element.style.display = existingVE.originalDisplay || 'block';
+            // Ensure position/size are correct as well, in case they could have changed
+            existingVE.element.style.position = 'absolute';
+            existingVE.element.style.left = `${existingVE.rect.x}px`;
+            existingVE.element.style.top = `${existingVE.rect.y}px`;
+            existingVE.element.style.width = `${existingVE.rect.width}px`;
+            existingVE.element.style.height = `${existingVE.rect.height}px`;
+            existingVE.isVisible = true;
+            // No need to re-add to currentlyVisibleElements as its ID was never deleted from there in this pass.
+        }
+        // If existingVE.isVisible is true, it was already visible and remains so.
+        // We could re-apply styles here if rects could change for visible elements.
+        // For now, assume rects for visible elements are stable between updates unless remeasured.
+      }
+    }
+
+    // Now, perform the actual Set.delete() operations
+    for (const id of idsToRemoveFromVisibleSet) {
+        this.currentlyVisibleElements.delete(id);
     }
     // Note: The parentElement should have appropriate CSS (e.g., position: relative)
     // for absolute positioning of children to work as expected. This is a user responsibility.
