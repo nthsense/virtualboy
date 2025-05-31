@@ -30,8 +30,8 @@ const mockElement = (id: string, initialHeight = 100, initialWidth = 100) => {
 // Mock for the parent element
 const mockParentElement = () => {
     const el = mockElement('parent-virtualboy', 800, 600) as any; // Type as any for easier mocking
-    el.scrollTop = 0;
-    el.scrollLeft = 0;
+    el.scrollTop = 0; // Default to 0
+    el.scrollLeft = 0; // Default to 0
     el.clientHeight = 600;
     el.clientWidth = 800;
     el.children = []; // To somewhat simulate children for discoverInitialElements
@@ -425,9 +425,10 @@ describe('Virtualboy updateVisibleElements - Relative Positioning', () => {
         jest.clearAllMocks();   // Clears call counts etc. for all mocks
     });
 
-    test('should position a single element relative to virtualScrollTop/Left', () => {
+    test('should position element correctly, compensating for virtual scroll (parent scroll 0)', () => {
         (virtualboy as any).virtualScrollTop = 200;
         (virtualboy as any).virtualScrollLeft = 30;
+        // parentElement.scrollTop and scrollLeft are 0 by default from mockParentElement
 
         const mockElem = mockElement('el1');
         const veData: VirtualElement = {
@@ -438,7 +439,6 @@ describe('Virtualboy updateVisibleElements - Relative Positioning', () => {
         mockQueryRangeFn.mockReturnValue([veData]);
 
         const appendedElements: HTMLElement[] = [];
-        // Ensure originalAppendChild on the mock parent is a Jest mock function for this test
         parentElement.originalAppendChild = jest.fn((node: Node) => {
             if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
                 Array.from(node.childNodes).forEach(child => {
@@ -449,7 +449,6 @@ describe('Virtualboy updateVisibleElements - Relative Positioning', () => {
             } else if (node.nodeType === Node.ELEMENT_NODE) {
                 appendedElements.push(node as HTMLElement);
             }
-            // Default mock behavior: return the node
             return node;
         });
 
@@ -457,26 +456,31 @@ describe('Virtualboy updateVisibleElements - Relative Positioning', () => {
 
         expect(appendedElements.length).toBe(1);
         const renderedElement = appendedElements[0];
-        expect(renderedElement.style.top).toBe(`${250 - 200}px`); // 50px
-        expect(renderedElement.style.left).toBe(`${40 - 30}px`);  // 10px
-        expect(veData.isVisible).toBe(true); // Check the VirtualElement state
+        // Expected: (rect.y - virtualScrollTop) + parentElement.scrollTop
+        // Expected: (250 - 200) + 0 = 50
+        expect(renderedElement.style.top).toBe(`${50}px`);
+        // Expected: (rect.x - virtualScrollLeft) + parentElement.scrollLeft
+        // Expected: (40 - 30) + 0 = 10
+        expect(renderedElement.style.left).toBe(`${10}px`);
+        expect(veData.isVisible).toBe(true);
         expect((virtualboy as any).currentlyVisibleElements.has('el1')).toBe(true);
     });
 
-    test('should position elements at 0,0 if they align with virtualScrollTop/Left', () => {
+    test('should position elements reflecting parent scroll when aligned with virtual viewport', () => {
         (virtualboy as any).virtualScrollTop = 300;
         (virtualboy as any).virtualScrollLeft = 70;
+        parentElement.scrollTop = 10; // Non-zero parent scroll
+        parentElement.scrollLeft = 5;  // Non-zero parent scroll
 
         const mockElem = mockElement('el2');
         const veData: VirtualElement = {
             id: 'el2', element: mockElem,
-            rect: { x: 70, y: 300, width: 10, height: 10 },
+            rect: { x: 70, y: 300, width: 10, height: 10 }, // Aligned with virtual scroll
             isVisible: false, originalDisplay: 'block'
         };
         mockQueryRangeFn.mockReturnValue([veData]);
 
         const appendedElements: HTMLElement[] = [];
-        // Simplified append capture for this test, assuming single element in fragment
         parentElement.originalAppendChild = jest.fn((node: Node) => {
              if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE && node.childNodes.length > 0) {
                 appendedElements.push(node.childNodes[0] as HTMLElement);
@@ -490,9 +494,168 @@ describe('Virtualboy updateVisibleElements - Relative Positioning', () => {
 
         expect(appendedElements.length).toBe(1);
         const renderedElement = appendedElements[0];
-        expect(renderedElement.style.top).toBe('0px');
-        expect(renderedElement.style.left).toBe('0px');
+        // Expected: (rect.y - virtualScrollTop) + parentElement.scrollTop
+        // Expected: (300 - 300) + 10 = 10
+        expect(renderedElement.style.top).toBe('10px');
+        // Expected: (rect.x - virtualScrollLeft) + parentElement.scrollLeft
+        // Expected: (70 - 70) + 5 = 5
+        expect(renderedElement.style.left).toBe('5px');
         expect(veData.isVisible).toBe(true);
         expect((virtualboy as any).currentlyVisibleElements.has('el2')).toBe(true);
+    });
+
+    test('should apply parent scroll offset correctly when element is not aligned with virtual viewport', () => {
+        (virtualboy as any).virtualScrollTop = 100;  // virtual viewport scrolled down by 100
+        (virtualboy as any).virtualScrollLeft = 50; // virtual viewport scrolled right by 50
+        parentElement.scrollTop = 20;               // parent element scrolled down by 20
+        parentElement.scrollLeft = 10;              // parent element scrolled right by 10
+
+        const mockElem = mockElement('el3');
+        const veData: VirtualElement = {
+            id: 'el3', element: mockElem,
+            rect: { x: 150, y: 250, width: 20, height: 20 }, // Element's absolute virtual position
+            isVisible: false, originalDisplay: 'block'
+        };
+        mockQueryRangeFn.mockReturnValue([veData]);
+
+        const appendedElements: HTMLElement[] = [];
+        parentElement.originalAppendChild = jest.fn((node: Node) => {
+             if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE && node.childNodes.length > 0) {
+                appendedElements.push(node.childNodes[0] as HTMLElement);
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+                appendedElements.push(node as HTMLElement);
+            }
+            return node;
+        });
+
+        (virtualboy as any).updateVisibleElements();
+
+        expect(appendedElements.length).toBe(1);
+        const renderedElement = appendedElements[0];
+        // Expected top: (rect.y - virtualScrollTop) + parentElement.scrollTop
+        // (250 - 100) + 20 = 150 + 20 = 170
+        expect(renderedElement.style.top).toBe('170px');
+        // Expected left: (rect.x - virtualScrollLeft) + parentElement.scrollLeft
+        // (150 - 50) + 10 = 100 + 10 = 110
+        expect(renderedElement.style.left).toBe('110px');
+        expect(veData.isVisible).toBe(true);
+        expect((virtualboy as any).currentlyVisibleElements.has('el3')).toBe(true);
+    });
+});
+
+describe('Virtualboy Parent Element Positioning', () => {
+    let parentElement: HTMLElement; // Use HTMLElement for parentElement type
+
+    beforeEach(() => {
+        parentElement = document.createElement('div');
+        // Append to body so getComputedStyle works more reliably in jsdom
+        document.body.appendChild(parentElement);
+        // Ensure mocks from other describe blocks don't interfere if run in same file.
+        // jest.clearAllMocks() might be needed if there are global mocks from other tests.
+        // For this suite, we are not using spies/mocks heavily on Virtualboy internals,
+        // but rather observing DOM properties and specific internal fields.
+    });
+
+    afterEach(() => {
+        if (parentElement.parentNode) {
+            parentElement.parentNode.removeChild(parentElement);
+        }
+        // jest.clearAllMocks(); // If using mocks that need clearing per test
+    });
+
+    test('should set parent position to "relative" and store original if parent is initially "static"', () => {
+        // JSDOM default for a new div's computed position is 'static'.
+        // We can also explicitly set parentElement.style.position = '' to ensure no inline style.
+        parentElement.style.position = ''; // Ensure no inline style that might make it non-static
+
+        // Mock document.createElement for sizer to allow Virtualboy instantiation
+        const actualCreateElement = document.createElement;
+        const sizerMock = mockElement('sizer-pos-test1'); // Assuming mockElement helper
+        jest.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+            if (tagName.toLowerCase() === 'div') return sizerMock;
+            return actualCreateElement.call(document, tagName);
+        });
+
+        const virtualboy = new Virtualboy(parentElement);
+
+        expect(parentElement.style.position).toBe('relative');
+        // originalParentPosition should store the inline style, which was empty string.
+        expect((virtualboy as any).originalParentPosition).toBe('');
+
+        virtualboy.destroy();
+        // Restoring an empty string to style.position effectively removes the inline 'relative'.
+        // The computed style would then revert to 'static'.
+        expect(parentElement.style.position).toBe('');
+
+        (document.createElement as jest.Mock).mockRestore(); // Clean up spy
+    });
+
+    test('should NOT change parent position if parent is initially "relative"', () => {
+        parentElement.style.position = 'relative';
+        const initialInlinePosition = parentElement.style.position;
+
+        const actualCreateElement = document.createElement;
+        const sizerMock = mockElement('sizer-pos-test2');
+        jest.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+            if (tagName.toLowerCase() === 'div') return sizerMock;
+            return actualCreateElement.call(document, tagName);
+        });
+
+        const virtualboy = new Virtualboy(parentElement);
+
+        expect(parentElement.style.position).toBe('relative'); // Should remain unchanged
+        expect((virtualboy as any).originalParentPosition).toBeUndefined(); // Should not have been stored
+
+        virtualboy.destroy();
+        expect(parentElement.style.position).toBe(initialInlinePosition); // Should still be the initial 'relative'
+
+        (document.createElement as jest.Mock).mockRestore();
+    });
+
+    test('should NOT change parent position if parent is initially "absolute" (already non-static)', () => {
+        parentElement.style.position = 'absolute';
+        const initialInlinePosition = parentElement.style.position;
+
+        const actualCreateElement = document.createElement;
+        const sizerMock = mockElement('sizer-pos-test3');
+        jest.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+            if (tagName.toLowerCase() === 'div') return sizerMock;
+            return actualCreateElement.call(document, tagName);
+        });
+
+        const virtualboy = new Virtualboy(parentElement);
+
+        expect(parentElement.style.position).toBe('absolute'); // Should remain unchanged
+        expect((virtualboy as any).originalParentPosition).toBeUndefined();
+
+        virtualboy.destroy();
+        expect(parentElement.style.position).toBe(initialInlinePosition);
+
+        (document.createElement as jest.Mock).mockRestore();
+    });
+
+    test('should restore an explicitly set original inline style if parent was "static" but had one', () => {
+        // This test is very similar to the first one, as setting style.position = ''
+        // results in computed 'static' and originalParentPosition storing ''.
+        // If parentElement.style.position was, for example, 'static !important',
+        // originalParentPosition would store 'static !important'.
+        // For this test, we'll stick to the common case of no inline style resulting in 'static'.
+        parentElement.style.position = '';
+
+        const actualCreateElement = document.createElement;
+        const sizerMock = mockElement('sizer-pos-test4');
+        jest.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+            if (tagName.toLowerCase() === 'div') return sizerMock;
+            return actualCreateElement.call(document, tagName);
+        });
+
+        const virtualboy = new Virtualboy(parentElement);
+        expect(parentElement.style.position).toBe('relative');
+        expect((virtualboy as any).originalParentPosition).toBe('');
+
+        virtualboy.destroy();
+        expect(parentElement.style.position).toBe('');
+
+        (document.createElement as jest.Mock).mockRestore();
     });
 });
